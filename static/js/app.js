@@ -297,6 +297,9 @@ class M3USorter {
                 </div>
             </div>
             <div class="channel-actions-inline">
+                <div class="channel-status-indicator" id="status-${index}">
+                    <!-- Status icon will be added here -->
+                </div>
                 <button class="btn-delete-single" title="Kanal löschen" onclick="deleteSingleChannel(${index})">
                     <i class="fas fa-trash"></i>
                 </button>

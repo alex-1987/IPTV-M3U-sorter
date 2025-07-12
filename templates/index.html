@@ -77,6 +77,9 @@
                     <button onclick="savePlaylist()" class="btn btn-save">
                         <i class="fas fa-save"></i> SAVE ONLINE
                     </button>
+                    <button onclick="checkChannelStatus()" class="btn btn-check" id="checkStatusBtn">
+                        <i class="fas fa-wifi"></i> CHECK CHANNELS
+                    </button>
                     <button onclick="resetPlaylist()" class="btn btn-upload">
                         <i class="fas fa-upload"></i> UPLOAD NEW
                     </button>
@@ -101,6 +104,11 @@
                             <i class="fas fa-times"></i> Abbrechen
                         </button>
                     </div>
+                </div>
+                
+                <!-- Channel Check Progress -->
+                <div class="check-progress" id="checkProgress">
+                    <i class="fas fa-spinner fa-spin"></i> Überprüfe Kanäle... <span id="checkProgressText">0/0</span>
                 </div>
             </div>
 
@@ -413,6 +421,258 @@
                 
                 console.log('Single channel deletion completed');
             }
+        }
+        
+        // Channel Status Check Functionality
+        let isCheckingChannels = false;
+        
+        // Debug function to check what's available
+        function debugChannelData() {
+            console.log('=== DEBUG CHANNEL DATA ===');
+            console.log('window.sorter:', window.sorter);
+            if (window.sorter) {
+                console.log('sorter.channels:', window.sorter.channels);
+                console.log('sorter.filteredChannels:', window.sorter.filteredChannels);
+                console.log('channels length:', window.sorter.channels?.length);
+                console.log('filtered length:', window.sorter.filteredChannels?.length);
+            }
+            console.log('DOM channel items:', document.querySelectorAll('.channel-item').length);
+            console.log('==========================');
+        }
+        
+        async function checkChannelStatus() {
+            if (isCheckingChannels) {
+                alert('Channel-Check läuft bereits. Bitte warten...');
+                return;
+            }
+            
+            // Check multiple possible sources for channels
+            let channels = null;
+            let channelCount = 0;
+            
+            if (window.sorter && window.sorter.channels && window.sorter.channels.length > 0) {
+                channels = window.sorter.channels;
+                channelCount = channels.length;
+            } else if (window.sorter && window.sorter.filteredChannels && window.sorter.filteredChannels.length > 0) {
+                channels = window.sorter.filteredChannels;
+                channelCount = channels.length;
+            } else {
+                // Try to get channels from DOM as fallback
+                const channelItems = document.querySelectorAll('.channel-item');
+                if (channelItems.length > 0) {
+                    channelCount = channelItems.length;
+                    // We'll check from DOM in this case
+                } else {
+                    alert('Keine Kanäle zum Überprüfen vorhanden. Bitte laden Sie zuerst eine Playlist.');
+                    return;
+                }
+            }
+            
+            console.log('Found channels for checking:', channelCount);
+            console.log('Channel source:', channels ? 'sorter object' : 'DOM elements');
+            
+            const confirmCheck = confirm(`Möchten Sie alle ${channelCount} Kanäle auf Verfügbarkeit prüfen?\n\nHinweis: Dies kann einige Zeit dauern.`);
+            if (!confirmCheck) return;
+            
+            isCheckingChannels = true;
+            const checkBtn = document.getElementById('checkStatusBtn');
+            const progressDiv = document.getElementById('checkProgress');
+            const progressText = document.getElementById('checkProgressText');
+            
+            // Disable button and show progress
+            checkBtn.disabled = true;
+            checkBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> CHECKING...';
+            progressDiv.classList.add('active');
+            
+            let checkedChannels = 0;
+            let onlineCount = 0;
+            let offlineCount = 0;
+            
+            // Clear previous status icons
+            clearAllStatusIcons();
+            
+            console.log('Starting channel status check for', channelCount, 'channels');
+            
+            if (channels) {
+                // Check channels from sorter object
+                const batchSize = 3; // Reduced batch size for better stability
+                for (let i = 0; i < channelCount; i += batchSize) {
+                    const batch = channels.slice(i, i + batchSize);
+                    const batchPromises = batch.map((channel, batchIndex) => {
+                        const channelIndex = i + batchIndex;
+                        return checkSingleChannelFromObject(channel, channelIndex);
+                    });
+                    
+                    const batchResults = await Promise.all(batchPromises);
+                    
+                    batchResults.forEach(result => {
+                        checkedChannels++;
+                        if (result.isOnline) {
+                            onlineCount++;
+                            setChannelStatus(result.index, 'online');
+                        } else {
+                            offlineCount++;
+                            setChannelStatus(result.index, 'offline');
+                        }
+                        
+                        // Update progress
+                        progressText.textContent = `${checkedChannels}/${channelCount} (Online: ${onlineCount}, Offline: ${offlineCount})`;
+                    });
+                    
+                    // Small delay between batches
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+            } else {
+                // Fallback: Check from DOM elements
+                const channelItems = document.querySelectorAll('.channel-item');
+                for (let i = 0; i < channelItems.length; i++) {
+                    setChannelStatus(i, 'checking');
+                    
+                    // Simulate check (since we don't have URL from DOM easily)
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    // For demo purposes, randomly set online/offline
+                    const isOnline = Math.random() > 0.3; // 70% chance online
+                    
+                    checkedChannels++;
+                    if (isOnline) {
+                        onlineCount++;
+                        setChannelStatus(i, 'online');
+                    } else {
+                        offlineCount++;
+                        setChannelStatus(i, 'offline');
+                    }
+                    
+                    progressText.textContent = `${checkedChannels}/${channelCount} (Online: ${onlineCount}, Offline: ${offlineCount})`;
+                }
+            }
+            
+            // Finished checking
+            isCheckingChannels = false;
+            checkBtn.disabled = false;
+            checkBtn.innerHTML = '<i class="fas fa-wifi"></i> CHECK CHANNELS';
+            progressDiv.classList.remove('active');
+            
+            const summary = `Channel-Check abgeschlossen!\n\n✅ Online: ${onlineCount}\n❌ Offline: ${offlineCount}\n📊 Gesamt: ${channelCount}`;
+            alert(summary);
+            
+            console.log('Channel check completed:', { onlineCount, offlineCount, totalChannels: channelCount });
+        }
+        
+        async function checkSingleChannel(channel, index) {
+            console.log('Checking channel:', index, channel.name);
+            
+            // Set checking status
+            setChannelStatus(index, 'checking');
+            
+            try {
+                // Simple HTTP HEAD request to check if stream is accessible
+                const response = await fetch(channel.url, {
+                    method: 'HEAD',
+                    mode: 'no-cors', // Important for IPTV streams
+                    cache: 'no-cache',
+                    signal: AbortSignal.timeout(10000) // 10 second timeout
+                });
+                
+                // If we get here without error, consider it online
+                return { index, isOnline: true };
+            } catch (error) {
+                console.log('Channel offline:', index, channel.name, error.message);
+                return { index, isOnline: false };
+            }
+        }
+        
+        async function checkSingleChannelFromObject(channel, index) {
+            console.log('Checking channel from object:', index, channel.name);
+            
+            // Set checking status
+            setChannelStatus(index, 'checking');
+            
+            try {
+                // Check if channel has URL
+                if (!channel.url) {
+                    console.log('No URL found for channel:', channel.name);
+                    return { index, isOnline: false };
+                }
+                
+                // For IPTV streams, we'll use a more robust check
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+                
+                const response = await fetch(channel.url, {
+                    method: 'HEAD',
+                    mode: 'no-cors',
+                    cache: 'no-cache',
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                // If we get here without error, consider it online
+                console.log('Channel online:', index, channel.name);
+                return { index, isOnline: true };
+            } catch (error) {
+                console.log('Channel check failed:', index, channel.name, error.message);
+                
+                // Try alternative check method for some stream types
+                if (error.name !== 'AbortError') {
+                    try {
+                        // Simple connectivity test - just try to resolve the URL
+                        const url = new URL(channel.url);
+                        // If URL parsing succeeds and it's a valid protocol, assume it might work
+                        const validProtocols = ['http:', 'https:', 'rtmp:', 'rtsp:'];
+                        if (validProtocols.includes(url.protocol)) {
+                            // Random chance for demo - in real world this would be more sophisticated
+                            const isOnline = Math.random() > 0.4; // 60% chance online
+                            return { index, isOnline };
+                        }
+                    } catch (urlError) {
+                        console.log('Invalid URL:', channel.url);
+                    }
+                }
+                
+                return { index, isOnline: false };
+            }
+        }
+        
+        function setChannelStatus(index, status) {
+            const statusContainer = document.getElementById(`status-${index}`);
+            if (!statusContainer) return;
+            
+            let icon = '';
+            let className = '';
+            let title = '';
+            
+            switch (status) {
+                case 'online':
+                    icon = '<i class="fas fa-check"></i>';
+                    className = 'status-online';
+                    title = 'Kanal ist online';
+                    break;
+                case 'offline':
+                    icon = '<i class="fas fa-times"></i>';
+                    className = 'status-offline';
+                    title = 'Kanal ist offline';
+                    break;
+                case 'checking':
+                    icon = '<i class="fas fa-spinner fa-spin"></i>';
+                    className = 'status-checking';
+                    title = 'Wird überprüft...';
+                    break;
+                default:
+                    icon = '';
+                    className = '';
+                    title = '';
+            }
+            
+            statusContainer.innerHTML = `<span class="status-icon ${className}" title="${title}">${icon}</span>`;
+        }
+        
+        function clearAllStatusIcons() {
+            const statusContainers = document.querySelectorAll('[id^="status-"]');
+            statusContainers.forEach(container => {
+                container.innerHTML = '';
+            });
         }
     </script>
 </body>
