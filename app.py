@@ -52,18 +52,20 @@ app.config.update(
     APPLICATION_ROOT=os.environ.get('APP_ROOT', '/'),
 )
 
-# Enhanced SERVER_NAME handling for Caddy reverse proxy - CORRECTED
+# Enhanced SERVER_NAME handling for reverse proxy - FIXED
 
 # Handle SERVER_NAME configuration properly for reverse proxy
 server_name = os.environ.get('SERVER_NAME')
-if server_name and server_name.strip():
-    # Only set SERVER_NAME if explicitly provided and not empty
+if server_name and server_name.strip() and server_name.lower() != 'none':
+    # Only set SERVER_NAME if explicitly provided, not empty, and not 'none'
     app.config['SERVER_NAME'] = server_name.strip()
     app.logger.info(f"SERVER_NAME configured: {server_name.strip()}")
 else:
-    # Set to None instead of deleting to avoid KeyError
-    app.config['SERVER_NAME'] = None
-    app.logger.info("SERVER_NAME set to None - using Flask default behavior for reverse proxy")
+    # Don't set SERVER_NAME at all for localhost/container access
+    # This prevents Flask from trying to match server names
+    if 'SERVER_NAME' in app.config:
+        del app.config['SERVER_NAME']
+    app.logger.info("SERVER_NAME not configured - using Flask default behavior for reverse proxy")
 
 # Enhanced request context handler for reverse proxy
 @app.before_request
@@ -575,15 +577,24 @@ initialize_app()
 
 @app.errorhandler(404)
 def not_found_error(error):
-    """Handle 404 errors gracefully"""
+    """Handle 404 errors gracefully with better debugging"""
+    app.logger.warning(f"404 error for path: {request.path}, method: {request.method}")
+    app.logger.debug(f"Available routes: {[rule.rule for rule in app.url_map.iter_rules()]}")
+    
     if request.path.startswith('/api/'):
         return jsonify({
             'success': False,
             'error': 'API endpoint not found',
-            'path': request.path
+            'path': request.path,
+            'method': request.method
         }), 404
     
-    return render_template('index.html'), 404
+    # For non-API requests, serve the main page
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        app.logger.error(f"Error rendering index.html: {str(e)}")
+        return f"Application error: {str(e)}", 500
 
 @app.errorhandler(500)
 def internal_error(error):
@@ -625,6 +636,38 @@ def key_error_handler(error):
         }), 500
     
     return render_template('index.html'), 500
+
+# Add route verification function for debugging
+@app.before_first_request
+def verify_routes():
+    """Verify all routes are properly registered"""
+    app.logger.info("Verifying route registration:")
+    
+    expected_routes = [
+        ('/', 'GET'),
+        ('/health', 'GET'),
+        ('/healthz', 'GET'), 
+        ('/ping', 'GET'),
+        ('/ping-simple', 'GET'),
+        ('/api/upload', 'POST'),
+        ('/api/save', 'POST'),
+        ('/api/export', 'POST')
+    ]
+    
+    registered_routes = []
+    for rule in app.url_map.iter_rules():
+        for method in rule.methods:
+            if method not in ['HEAD', 'OPTIONS']:
+                registered_routes.append((rule.rule, method))
+    
+    app.logger.info(f"Registered routes: {registered_routes}")
+    
+    for expected_route, expected_method in expected_routes:
+        if (expected_route, expected_method) in registered_routes:
+            app.logger.info(f"✓ Route verified: {expected_method} {expected_route}")
+        else:
+            app.logger.error(f"✗ Route missing: {expected_method} {expected_route}")
+
 
 if __name__ == '__main__':
     # Development mode only - Gunicorn handles production
