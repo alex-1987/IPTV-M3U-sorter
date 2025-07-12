@@ -296,6 +296,11 @@ class M3USorter {
                     ${channel.logo ? `<img src="${channel.logo}" alt="Logo" class="channel-logo" onerror="this.style.display='none'">` : ''}
                 </div>
             </div>
+            <div class="channel-actions-inline">
+                <button class="btn-delete-single" title="Kanal löschen" onclick="deleteSingleChannel(${index})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
             <div class="drag-handle">⋮⋮</div>
         `;
 

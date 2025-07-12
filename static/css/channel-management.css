@@ -81,18 +81,19 @@
 }
 
 .channel-item.selectable {
-    padding-left: 45px;
+    padding-left: 60px; /* Increased from 45px to 60px for more space */
 }
 
 .channel-checkbox {
     position: absolute;
-    left: 10px;
+    left: 15px; /* Increased from 10px to 15px */
     top: 50%;
     transform: translateY(-50%);
-    width: 18px;
-    height: 18px;
+    width: 20px; /* Slightly larger checkbox */
+    height: 20px;
     cursor: pointer;
     z-index: 10;
+    margin-right: 15px; /* Additional margin */
 }
 
 .channel-item.selected {
@@ -207,6 +208,41 @@
 
 .btn-cancel:hover {
     background: #545b62;
+}
+
+/* Individual Channel Delete Button */
+.channel-actions-inline {
+    display: flex;
+    align-items: center;
+    margin-right: 10px;
+}
+
+.btn-delete-single {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+    transform: scale(0.9);
+}
+
+.btn-delete-single:hover {
+    background: #c82333;
+    opacity: 1;
+    transform: scale(1);
+}
+
+.btn-delete-single i {
+    font-size: 11px;
+}
+
+/* Show delete button on hover */
+.channel-item:hover .btn-delete-single {
+    opacity: 0.9;
 }
 
 /* Animations */

@@ -83,21 +83,21 @@
                 </div>
 
                 <!-- Channel Management Actions -->
-                <div class="channel-actions" id="channelActions" style="display: none;">
+                <div class="channel-actions" id="channelActions" style="display: flex;">
                     <div class="selection-info">
-                        <button onclick="window.channelManager && window.channelManager.enableSelectMode()" class="btn btn-secondary" id="enableDeleteBtn">
-                            <i class="fas fa-trash"></i> Lösch-Modus
+                        <button onclick="enableDeleteMode()" class="btn btn-secondary" id="enableDeleteBtn">
+                            <i class="fas fa-trash"></i> Lösch-Modus aktivieren
                         </button>
                         <span id="selectedCount">0 ausgewählt</span>
-                        <button onclick="window.channelManager && window.channelManager.toggleSelectAll()" class="btn btn-select-all" id="selectAllBtn" style="display: none;">
+                        <button onclick="toggleSelectAll()" class="btn btn-select-all" id="selectAllBtn" style="display: none;">
                             <i class="fas fa-check-square"></i> Alle auswählen
                         </button>
                     </div>
                     <div class="action-buttons" style="display: none;" id="deleteActions">
-                        <button onclick="window.channelManager && window.channelManager.deleteSelectedChannels()" class="btn btn-delete" id="deleteBtn" disabled>
+                        <button onclick="deleteSelectedChannels()" class="btn btn-delete" id="deleteBtn" disabled>
                             <i class="fas fa-trash"></i> Ausgewählte löschen
                         </button>
-                        <button onclick="window.channelManager && window.channelManager.disableSelectMode()" class="btn btn-secondary">
+                        <button onclick="disableDeleteMode()" class="btn btn-secondary">
                             <i class="fas fa-times"></i> Abbrechen
                         </button>
                     </div>
@@ -156,8 +156,13 @@
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/channel-management.js') }}"></script>
     <script>
+        // Global variables
+        let isDeleteMode = false;
+        let selectedChannels = new Set();
+        
         // Initialize Channel Manager after DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, checking for sorter...');
             // Initialize channel manager when M3USorter is available
             function initChannelManager() {
                 if (typeof window.sorter !== 'undefined') {
@@ -169,6 +174,246 @@
             }
             initChannelManager();
         });
+        
+        // Global functions for delete functionality
+        function enableDeleteMode() {
+            console.log('Enabling delete mode...');
+            isDeleteMode = true;
+            addCheckboxesToChannels();
+            showDeleteActions();
+        }
+        
+        function disableDeleteMode() {
+            console.log('Disabling delete mode...');
+            isDeleteMode = false;
+            selectedChannels.clear();
+            removeCheckboxesFromChannels();
+            hideDeleteActions();
+            updateUI();
+            
+            // Force complete refresh of the channel list
+            setTimeout(() => {
+                if (window.sorter) {
+                    window.sorter.renderChannels();
+                }
+            }, 100);
+        }
+        
+        function addCheckboxesToChannels() {
+            const channelItems = document.querySelectorAll('.channel-item');
+            
+            channelItems.forEach((item, index) => {
+                if (!item.querySelector('.channel-checkbox')) {
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'channel-checkbox';
+                    checkbox.dataset.channelIndex = index;
+                    // Removed inline margin since it's handled by CSS
+                    
+                    checkbox.addEventListener('change', (e) => {
+                        handleChannelSelection(index, e.target.checked);
+                    });
+                    
+                    // Add selectable class for proper spacing
+                    item.classList.add('selectable');
+                    item.insertBefore(checkbox, item.firstChild);
+                }
+            });
+        }
+        
+        function removeCheckboxesFromChannels() {
+            const checkboxes = document.querySelectorAll('.channel-checkbox');
+            console.log('Removing', checkboxes.length, 'checkboxes');
+            checkboxes.forEach(checkbox => {
+                checkbox.remove();
+            });
+            
+            // Also remove any selection styling
+            const channelItems = document.querySelectorAll('.channel-item');
+            channelItems.forEach(item => {
+                item.classList.remove('selected', 'selectable');
+            });
+        }
+        
+        function handleChannelSelection(index, isSelected) {
+            if (isSelected) {
+                selectedChannels.add(index);
+            } else {
+                selectedChannels.delete(index);
+            }
+            updateUI();
+        }
+        
+        function toggleSelectAll() {
+            const allSelected = selectedChannels.size === document.querySelectorAll('.channel-item').length;
+            
+            if (allSelected) {
+                // Deselect all
+                selectedChannels.clear();
+                document.querySelectorAll('.channel-checkbox').forEach(cb => cb.checked = false);
+            } else {
+                // Select all
+                document.querySelectorAll('.channel-checkbox').forEach((cb, index) => {
+                    cb.checked = true;
+                    selectedChannels.add(index);
+                });
+            }
+            updateUI();
+        }
+        
+        function deleteSelectedChannels() {
+            if (selectedChannels.size === 0) {
+                alert('Bitte wählen Sie mindestens einen Kanal zum Löschen aus.');
+                return;
+            }
+            
+            const count = selectedChannels.size;
+            if (confirm(`Möchten Sie wirklich ${count} Kanal(e) löschen?`)) {
+                console.log('Starting deletion process...');
+                
+                // Get all channel items that are currently displayed
+                const channelItems = document.querySelectorAll('.channel-item');
+                console.log('Total channel items found:', channelItems.length);
+                console.log('Selected indices:', Array.from(selectedChannels));
+                
+                // Remove the selected channel items from DOM directly
+                const itemsToRemove = [];
+                channelItems.forEach((item, index) => {
+                    if (selectedChannels.has(index)) {
+                        console.log('Marking for removal:', index, item.textContent.substring(0, 50));
+                        itemsToRemove.push(item);
+                    }
+                });
+                
+                // Remove from DOM
+                itemsToRemove.forEach(item => {
+                    item.remove();
+                });
+                
+                // Also try to update the sorter's data if it exists
+                if (window.sorter && window.sorter.channels) {
+                    console.log('Updating sorter data...');
+                    // Create new arrays without deleted channels
+                    const indicesToDelete = Array.from(selectedChannels).sort((a, b) => b - a);
+                    
+                    indicesToDelete.forEach(index => {
+                        if (window.sorter.channels[index]) {
+                            console.log('Removing from sorter.channels:', index, window.sorter.channels[index].name);
+                            window.sorter.channels.splice(index, 1);
+                        }
+                        if (window.sorter.filteredChannels && window.sorter.filteredChannels[index]) {
+                            window.sorter.filteredChannels.splice(index, 1);
+                        }
+                    });
+                    
+                    // Force update stats
+                    if (typeof window.sorter.updateStats === 'function') {
+                        window.sorter.updateStats();
+                    }
+                }
+                
+                // Update the channel numbers for remaining items
+                const remainingItems = document.querySelectorAll('.channel-item');
+                remainingItems.forEach((item, index) => {
+                    const numberElement = item.querySelector('.channel-number');
+                    if (numberElement) {
+                        numberElement.textContent = index + 1;
+                    }
+                });
+                
+                // Reset delete mode
+                disableDeleteMode();
+                
+                alert(`${count} Kanal(e) erfolgreich gelöscht.`);
+                console.log('Deletion completed');
+            }
+        }
+        
+        function showDeleteActions() {
+            document.getElementById('enableDeleteBtn').style.display = 'none';
+            document.getElementById('deleteActions').style.display = 'flex';
+            document.getElementById('selectAllBtn').style.display = 'inline-block';
+        }
+        
+        function hideDeleteActions() {
+            document.getElementById('enableDeleteBtn').style.display = 'inline-block';
+            document.getElementById('deleteActions').style.display = 'none';
+            document.getElementById('selectAllBtn').style.display = 'none';
+        }
+        
+        function updateUI() {
+            const selectedCount = document.getElementById('selectedCount');
+            const deleteBtn = document.getElementById('deleteBtn');
+            const selectAllBtn = document.getElementById('selectAllBtn');
+            
+            if (selectedCount) {
+                selectedCount.textContent = `${selectedChannels.size} ausgewählt`;
+            }
+            
+            if (deleteBtn) {
+                deleteBtn.disabled = selectedChannels.size === 0;
+            }
+            
+            if (selectAllBtn) {
+                const allSelected = selectedChannels.size === document.querySelectorAll('.channel-item').length;
+                selectAllBtn.innerHTML = allSelected ? 
+                    '<i class="fas fa-square"></i> Alle abwählen' : 
+                    '<i class="fas fa-check-square"></i> Alle auswählen';
+            }
+        }
+        
+        // Function to delete a single channel by index
+        function deleteSingleChannel(index) {
+            const channelItems = document.querySelectorAll('.channel-item');
+            const channelItem = channelItems[index];
+            
+            if (!channelItem) {
+                console.error('Channel not found at index:', index);
+                return;
+            }
+            
+            // Get channel name for confirmation
+            const channelName = channelItem.querySelector('.channel-name')?.textContent || 'Unbekannter Kanal';
+            
+            if (confirm(`Möchten Sie den Kanal "${channelName}" wirklich löschen?`)) {
+                console.log('Deleting single channel at index:', index, 'Name:', channelName);
+                
+                // Remove from DOM
+                channelItem.remove();
+                
+                // Update sorter data if available
+                if (window.sorter && window.sorter.channels && window.sorter.channels[index]) {
+                    console.log('Removing from sorter.channels:', index, window.sorter.channels[index].name);
+                    window.sorter.channels.splice(index, 1);
+                    
+                    if (window.sorter.filteredChannels) {
+                        window.sorter.filteredChannels = [...window.sorter.channels];
+                    }
+                    
+                    // Update stats
+                    if (typeof window.sorter.updateStats === 'function') {
+                        window.sorter.updateStats();
+                    }
+                }
+                
+                // Update remaining channel numbers
+                const remainingItems = document.querySelectorAll('.channel-item');
+                remainingItems.forEach((item, newIndex) => {
+                    const numberElement = item.querySelector('.channel-number');
+                    if (numberElement) {
+                        numberElement.textContent = newIndex + 1;
+                    }
+                    
+                    // Update onclick handler with new index
+                    const deleteBtn = item.querySelector('.btn-delete-single');
+                    if (deleteBtn) {
+                        deleteBtn.setAttribute('onclick', `deleteSingleChannel(${newIndex})`);
+                    }
+                });
+                
+                console.log('Single channel deletion completed');
+            }
+        }
     </script>
 </body>
 </html>
