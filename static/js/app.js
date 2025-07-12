@@ -239,6 +239,11 @@ class M3USorter {
             channelsList.appendChild(channelDiv);
         });
         
+        // Update channel manager visibility when channels are rendered
+        if (window.channelManager) {
+            window.channelManager.updateChannelActionsVisibility();
+        }
+        
         console.log('Rendered channels:', this.filteredChannels.map((ch, idx) => ({
             name: ch.name,
             displayPosition: idx + 1,

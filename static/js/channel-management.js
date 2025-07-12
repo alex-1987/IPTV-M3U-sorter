@@ -25,6 +25,15 @@ class ChannelManager {
         this.selectMode = true;
         this.addCheckboxesToChannels();
         this.updateUI();
+        
+        // Show delete actions, hide enable button
+        const enableDeleteBtn = document.getElementById('enableDeleteBtn');
+        const deleteActions = document.getElementById('deleteActions');
+        const selectAllBtn = document.getElementById('selectAllBtn');
+        
+        if (enableDeleteBtn) enableDeleteBtn.style.display = 'none';
+        if (deleteActions) deleteActions.style.display = 'flex';
+        if (selectAllBtn) selectAllBtn.style.display = 'inline-block';
     }
 
     disableSelectMode() {
@@ -32,6 +41,15 @@ class ChannelManager {
         this.selectedChannels.clear();
         this.removeCheckboxesFromChannels();
         this.updateUI();
+        
+        // Hide delete actions, show enable button
+        const enableDeleteBtn = document.getElementById('enableDeleteBtn');
+        const deleteActions = document.getElementById('deleteActions');
+        const selectAllBtn = document.getElementById('selectAllBtn');
+        
+        if (enableDeleteBtn) enableDeleteBtn.style.display = 'inline-block';
+        if (deleteActions) deleteActions.style.display = 'none';
+        if (selectAllBtn) selectAllBtn.style.display = 'none';
     }
 
     addCheckboxesToChannels() {

@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   iptv-sorter:
-    image: alexfl1987/iptv-m3u-sorter:latest-stable
+    build: .
     container_name: iptv-m3u-sorter
     user: "${USER_UID:-1000}:${USER_GID:-1000}"
     ports:

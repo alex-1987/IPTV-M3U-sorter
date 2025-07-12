@@ -85,17 +85,20 @@
                 <!-- Channel Management Actions -->
                 <div class="channel-actions" id="channelActions" style="display: none;">
                     <div class="selection-info">
+                        <button onclick="window.channelManager && window.channelManager.enableSelectMode()" class="btn btn-secondary" id="enableDeleteBtn">
+                            <i class="fas fa-trash"></i> Lösch-Modus
+                        </button>
                         <span id="selectedCount">0 ausgewählt</span>
-                        <button onclick="toggleSelectAll()" class="btn btn-select-all" id="selectAllBtn">
+                        <button onclick="window.channelManager && window.channelManager.toggleSelectAll()" class="btn btn-select-all" id="selectAllBtn" style="display: none;">
                             <i class="fas fa-check-square"></i> Alle auswählen
                         </button>
                     </div>
-                    <div class="action-buttons">
-                        <button onclick="deleteSelectedChannels()" class="btn btn-delete" id="deleteBtn" disabled>
+                    <div class="action-buttons" style="display: none;" id="deleteActions">
+                        <button onclick="window.channelManager && window.channelManager.deleteSelectedChannels()" class="btn btn-delete" id="deleteBtn" disabled>
                             <i class="fas fa-trash"></i> Ausgewählte löschen
                         </button>
-                        <button onclick="clearSelection()" class="btn btn-secondary">
-                            <i class="fas fa-times"></i> Auswahl aufheben
+                        <button onclick="window.channelManager && window.channelManager.disableSelectMode()" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Abbrechen
                         </button>
                     </div>
                 </div>
@@ -152,5 +155,20 @@
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/channel-management.js') }}"></script>
+    <script>
+        // Initialize Channel Manager after DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize channel manager when M3USorter is available
+            function initChannelManager() {
+                if (typeof window.sorter !== 'undefined') {
+                    window.channelManager = new ChannelManager(window.sorter);
+                    console.log('Channel Manager initialized');
+                } else {
+                    setTimeout(initChannelManager, 100);
+                }
+            }
+            initChannelManager();
+        });
+    </script>
 </body>
 </html>
