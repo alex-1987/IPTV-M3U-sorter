@@ -6,6 +6,7 @@
     <title>IPTV M3U Sorter</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-top-fix.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/channel-management.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -80,6 +81,24 @@
                         <i class="fas fa-upload"></i> UPLOAD NEW
                     </button>
                 </div>
+
+                <!-- Channel Management Actions -->
+                <div class="channel-actions" id="channelActions" style="display: none;">
+                    <div class="selection-info">
+                        <span id="selectedCount">0 ausgewählt</span>
+                        <button onclick="toggleSelectAll()" class="btn btn-select-all" id="selectAllBtn">
+                            <i class="fas fa-check-square"></i> Alle auswählen
+                        </button>
+                    </div>
+                    <div class="action-buttons">
+                        <button onclick="deleteSelectedChannels()" class="btn btn-delete" id="deleteBtn" disabled>
+                            <i class="fas fa-trash"></i> Ausgewählte löschen
+                        </button>
+                        <button onclick="clearSelection()" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Auswahl aufheben
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Sortierungs-Vorlagen nach oben verschoben -->
@@ -132,5 +151,6 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/channel-management.js') }}"></script>
 </body>
 </html>
