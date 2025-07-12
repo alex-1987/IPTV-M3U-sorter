@@ -1434,8 +1434,8 @@ class M3USorter {
             savedUrlDisplay.value = url;
             saveSuccessInfo.style.display = 'block';
             
-            // Scroll to the success info
-            saveSuccessInfo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // No need to scroll since modal is now at the top
+            // saveSuccessInfo.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }
 

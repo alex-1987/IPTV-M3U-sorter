@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IPTV M3U Sorter</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-top-fix.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -12,6 +13,26 @@
         <div class="header">
             <h1><i class="fas fa-tv"></i> IPTV M3U Sorter</h1>
             <p>Organisieren Sie Ihre IPTV-Playlisten mit Drag & Drop</p>
+        </div>
+
+        <!-- Save Success Info - Fixed at top -->
+        <div id="saveSuccessInfo" class="success-banner" style="display: none;">
+            <div class="success-content">
+                <div class="success-header">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Playlist erfolgreich online gespeichert!</span>
+                    <button onclick="hideSaveSuccess()" class="close-btn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="url-display">
+                    <span>URL:</span>
+                    <input type="text" id="savedUrlDisplay" readonly>
+                    <button onclick="copyUrl()" class="copy-btn">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Upload Section -->
@@ -108,20 +129,6 @@
             </div>
         </section>
 
-        <!-- Save Success Info -->
-        <div id="saveSuccessInfo" class="save-success" style="display: none;">
-            <h4><i class="fas fa-check-circle"></i> Playlist erfolgreich gespeichert!</h4>
-            <p>Ihre Playlist ist nun online verfügbar:</p>
-            <div class="url-container">
-                <input type="text" id="savedUrlDisplay" readonly>
-                <button onclick="copyUrl()" class="copy-btn">
-                    <i class="fas fa-copy"></i> Kopieren
-                </button>
-            </div>
-            <button onclick="hideSaveSuccess()" class="btn btn-secondary">
-                <i class="fas fa-times"></i> Schließen
-            </button>
-        </div>
     </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>

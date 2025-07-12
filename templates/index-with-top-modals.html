@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV M3U Playlist Sorter</title>
+    
+    <!-- Existing CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ cache_buster }}">
+    
+    <!-- New top-positioned modal CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-top.css') }}?v={{ cache_buster }}">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+</head>
+<body>
+    <!-- Your existing HTML content here -->
+    
+    <div class="container">
+        <header>
+            <h1>📺 IPTV M3U Playlist Sorter</h1>
+            <p>Laden Sie Ihre M3U Playlist hoch und sortieren Sie die Kanäle nach Ihren Wünschen</p>
+        </header>
+
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-content">
+                    <div class="upload-icon">📁</div>
+                    <h3>M3U Datei hochladen</h3>
+                    <p>Ziehen Sie Ihre M3U Datei hierher oder klicken Sie zum Auswählen</p>
+                    <input type="file" id="fileInput" accept=".m3u,.m3u8" style="display: none;">
+                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                        Datei auswählen
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Channel List Section -->
+        <section class="channels-section" id="channelsSection" style="display: none;">
+            <div class="section-header">
+                <h2>Kanäle sortieren</h2>
+                <div class="channel-controls">
+                    <input type="text" id="searchInput" placeholder="Kanäle suchen..." class="search-input">
+                    <select id="groupFilter" class="group-filter">
+                        <option value="">Alle Gruppen</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="resetOrder()">Reihenfolge zurücksetzen</button>
+                </div>
+            </div>
+            
+            <div class="channels-container" id="channelsContainer">
+                <!-- Channels will be populated here -->
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn btn-success" onclick="exportPlaylist()">
+                    📥 M3U exportieren
+                </button>
+                <button class="btn btn-primary" onclick="saveOnline()">
+                    🌐 Online speichern
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <!-- Loading indicator -->
+    <div class="loading" id="loading" style="display: none;">
+        <div class="loading-spinner"></div>
+        <p>Verarbeite Playlist...</p>
+    </div>
+
+    <!-- Existing JavaScript -->
+    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ cache_buster }}"></script>
+    
+    <!-- New top-positioned modal JavaScript -->
+    <script src="{{ url_for('static', filename='js/modal-top.js') }}?v={{ cache_buster }}"></script>
+</body>
+</html>

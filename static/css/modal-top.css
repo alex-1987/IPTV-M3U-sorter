@@ -1,0 +1,150 @@
+/* Success Modal Styles - Positioned at top */
+.success-modal {
+    position: fixed;
+    top: 20px; /* Changed from bottom to top */
+    left: 50%;
+    transform: translateX(-50%);
+    background: #28a745;
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+    animation: slideDown 0.3s ease-out;
+}
+
+/* Animation for sliding down from top */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+.success-modal h3 {
+    margin: 0 0 10px 0;
+    color: white;
+}
+
+.success-modal p {
+    margin: 10px 0;
+    word-break: break-all;
+}
+
+.success-modal .url-container {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 10px;
+    border-radius: 4px;
+    margin: 10px 0;
+    font-family: monospace;
+}
+
+.success-modal .button-group {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.success-modal button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.success-modal .copy-btn {
+    background: #fff;
+    color: #28a745;
+}
+
+.success-modal .close-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.success-modal button:hover {
+    opacity: 0.9;
+}
+
+/* Toast notification styles for top positioning */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1001;
+    width: 300px;
+}
+
+.toast {
+    background: #28a745;
+    color: white;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.toast.error {
+    background: #dc3545;
+}
+
+.toast.warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+/* Error modal styles - also at top */
+.error-modal {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #dc3545;
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+    animation: slideDown 0.3s ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .success-modal,
+    .error-modal {
+        top: 10px;
+        width: 95%;
+        padding: 15px;
+    }
+    
+    .toast-container {
+        top: 10px;
+        right: 10px;
+        width: calc(100% - 20px);
+    }
+}
