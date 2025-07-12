@@ -108,6 +108,62 @@ def add_security_headers(response):
 playlists = {}
 named_playlists = {}
 
+def ensure_directory_exists(directory):
+    """Ensure directory exists, create if not."""
+    if not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
+
+def get_playlists_file():
+    """Get the path to the playlists storage file."""
+    playlists_dir = app.config.get('SAVED_PLAYLISTS_FOLDER', 'saved_playlists')
+    ensure_directory_exists(playlists_dir)
+    return os.path.join(playlists_dir, 'playlists.json')
+
+def load_playlists():
+    """Load playlists from disk."""
+    global playlists, named_playlists
+    
+    try:
+        playlists_file = get_playlists_file()
+        if os.path.exists(playlists_file):
+            with open(playlists_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                playlists = data.get('playlists', {})
+                named_playlists = data.get('named_playlists', {})
+                app.logger.info(f"Loaded {len(playlists)} playlists from disk")
+        else:
+            app.logger.info("No existing playlists file found, starting fresh")
+    except Exception as e:
+        app.logger.error(f"Error loading playlists: {e}")
+        playlists = {}
+        named_playlists = {}
+
+def save_playlists_to_disk():
+    """Save playlists to disk."""
+    try:
+        playlists_file = get_playlists_file()
+        data = {
+            'playlists': playlists,
+            'named_playlists': named_playlists,
+            'saved_at': datetime.now().isoformat()
+        }
+        
+        # Write to temporary file first, then rename for atomic operation
+        temp_file = playlists_file + '.tmp'
+        with open(temp_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        
+        # Atomic rename
+        os.replace(temp_file, playlists_file)
+        app.logger.info(f"Saved {len(playlists)} playlists to disk")
+        return True
+    except Exception as e:
+        app.logger.error(f"Error saving playlists: {e}")
+        return False
+
+# Load existing playlists on startup
+load_playlists()
+
 # Enhanced health check endpoints
 @app.route('/health')
 @app.route('/healthz')
@@ -356,6 +412,33 @@ def check_playlist_name(playlist_name):
         'sanitized_name': sanitized_name
     })
 
+@app.route('/api/playlists')
+def list_playlists():
+    """List all saved playlists."""
+    try:
+        playlist_list = []
+        for name, data in named_playlists.items():
+            playlist_info = {
+                'name': data.get('name', name),
+                'sanitized_name': name,
+                'channel_count': len(data.get('channels', [])),
+                'created_at': data.get('created_at'),
+                'updated_at': data.get('updated_at'),
+                'url': url_for('serve_playlist_by_name', playlist_name=f'{name}.m3u', _external=True)
+            }
+            playlist_list.append(playlist_info)
+        
+        # Sort by creation date (newest first)
+        playlist_list.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'playlists': playlist_list,
+            'count': len(playlist_list)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/save', methods=['POST'])
 def save_playlist():
     """Save playlist with custom name."""
@@ -394,6 +477,12 @@ def save_playlist():
         # Store in both dictionaries
         playlists[playlist_id] = playlist_data
         named_playlists[sanitized_name] = playlist_data
+        
+        # Save to disk
+        if save_playlists_to_disk():
+            app.logger.info(f"Playlist '{playlist_name}' saved successfully")
+        else:
+            app.logger.warning(f"Playlist '{playlist_name}' saved to memory but failed to save to disk")
         
         return jsonify({
             'success': True,
@@ -605,6 +694,47 @@ def file_too_large_error(error):
         return render_template('index.html')
     except Exception as e:
         return f"Application error: {str(e)}", 500
+
+@app.route('/debug/playlists')
+def debug_playlists():
+    """Debug endpoint to see playlist storage status."""
+    try:
+        playlists_file = get_playlists_file()
+        
+        debug_info = {
+            'timestamp': datetime.now().isoformat(),
+            'playlists_in_memory': len(playlists),
+            'named_playlists_in_memory': len(named_playlists),
+            'playlists_file_path': playlists_file,
+            'playlists_file_exists': os.path.exists(playlists_file),
+            'playlists_directory': os.path.dirname(playlists_file),
+            'playlists_directory_exists': os.path.exists(os.path.dirname(playlists_file))
+        }
+        
+        # File info if exists
+        if os.path.exists(playlists_file):
+            stat = os.stat(playlists_file)
+            debug_info.update({
+                'file_size': stat.st_size,
+                'file_modified': datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                'file_readable': os.access(playlists_file, os.R_OK),
+                'file_writable': os.access(playlists_file, os.W_OK)
+            })
+        
+        # List named playlists
+        debug_info['named_playlists_list'] = []
+        for name, data in named_playlists.items():
+            debug_info['named_playlists_list'].append({
+                'name': data.get('name', name),
+                'sanitized_name': name,
+                'channel_count': len(data.get('channels', [])),
+                'created_at': data.get('created_at'),
+                'id': data.get('id')
+            })
+        
+        return jsonify(debug_info)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     # Development mode only - Gunicorn handles production
