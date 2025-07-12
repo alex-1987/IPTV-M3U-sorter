@@ -38,7 +38,7 @@ app.wsgi_app = ProxyFix(
 # Enhanced security configuration
 app.config.update(
     SECRET_KEY=os.environ.get('SECRET_KEY', os.urandom(24)),
-    MAX_CONTENT_LENGTH=int(os.environ.get('MAX_FILE_SIZE', 50 * 1024 * 1024)),  # 50MB default
+    MAX_CONTENT_LENGTH=int(os.environ.get('MAX_FILE_SIZE', 50 * 1024 * 1024)),
     UPLOAD_FOLDER=os.environ.get('UPLOAD_FOLDER', 'uploads'),
     SAVED_PLAYLISTS_FOLDER=os.environ.get('SAVED_PLAYLISTS_FOLDER', 'saved_playlists'),
     
@@ -52,14 +52,12 @@ app.config.update(
     APPLICATION_ROOT=os.environ.get('APP_ROOT', '/'),
 )
 
-# Enhanced SERVER_NAME handling for reverse proxy - FIXED
+# Enhanced SERVER_NAME handling for reverse proxy
 server_name = os.environ.get('SERVER_NAME')
 if server_name and server_name.strip() and server_name.lower() != 'none':
-    # Only set SERVER_NAME if explicitly provided, not empty, and not 'none'
     app.config['SERVER_NAME'] = server_name.strip()
     app.logger.info(f"SERVER_NAME configured: {server_name.strip()}")
 else:
-    # Don't set SERVER_NAME at all for localhost/container access
     app.logger.info("SERVER_NAME not configured - using Flask default behavior for reverse proxy")
 
 # Enhanced request context handler for reverse proxy
@@ -73,7 +71,6 @@ def handle_reverse_proxy():
 def inject_url_helpers():
     """Inject URL helpers that work with reverse proxy"""
     def external_url_for(endpoint, **values):
-        """Generate external URLs that work with reverse proxy"""
         try:
             return url_for(endpoint, _external=True, **values)
         except Exception as e:
@@ -94,7 +91,6 @@ def add_security_headers(response):
             'Referrer-Policy': 'strict-origin-when-cross-origin'
         }
         
-        # Add HSTS for HTTPS
         if os.environ.get('HTTPS_ENABLED', 'false').lower() == 'true':
             security_headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
         
@@ -121,13 +117,9 @@ def health_check():
             'version': '2.0.0',
             'server': 'gunicorn',
             'app': 'iptv-m3u-sorter',
-            'checks': {
-                'flask': 'ok',
-                'routing': 'ok'
-            }
+            'checks': {'flask': 'ok', 'routing': 'ok'}
         }
         
-        # Optional filesystem checks
         enable_fs_checks = os.environ.get('ENABLE_FS_HEALTH_CHECKS', 'false').lower() == 'true'
         
         if enable_fs_checks:
@@ -149,14 +141,10 @@ def health_check():
         else:
             health_status['checks']['filesystem_checks'] = 'disabled'
         
-        # Memory usage check
-        try:
-            playlist_count = len(playlists)
-            named_playlist_count = len(named_playlists)
-            health_status['checks']['playlists_in_memory'] = playlist_count
-            health_status['checks']['named_playlists_in_memory'] = named_playlist_count
-        except Exception as e:
-            health_status['checks']['memory_check'] = f'error: {str(e)}'
+        playlist_count = len(playlists)
+        named_playlist_count = len(named_playlists)
+        health_status['checks']['playlists_in_memory'] = playlist_count
+        health_status['checks']['named_playlists_in_memory'] = named_playlist_count
         
         return health_status, 200
         
@@ -185,15 +173,12 @@ def validate_m3u_content(content):
     if not content:
         return False, "Empty content"
     
-    # Check file size
     if len(content) > app.config['MAX_CONTENT_LENGTH']:
         return False, "File too large"
     
-    # Basic M3U validation
     if not content.strip().startswith('#EXTM3U'):
         return False, "Not a valid M3U file"
     
-    # Check for potentially dangerous content
     dangerous_patterns = ['<script', 'javascript:', 'data:text/html']
     content_lower = content.lower()
     for pattern in dangerous_patterns:
@@ -206,16 +191,13 @@ def parse_m3u_content(content):
     """Parse M3U file content and extract channel information."""
     channels = []
     lines = content.strip().split('\n')
-    
     current_extinf = None
     
     for line in lines:
         line = line.strip()
-        
         if line.startswith('#EXTINF:'):
             current_extinf = line
         elif line and not line.startswith('#') and current_extinf:
-            # Extract channel information from EXTINF line
             channel_info = parse_extinf_line(current_extinf)
             channel_info['url'] = line
             channels.append(channel_info)
@@ -225,8 +207,6 @@ def parse_m3u_content(content):
 
 def parse_extinf_line(extinf_line):
     """Parse EXTINF line to extract channel name, group, and logo."""
-    # Example: #EXTINF:-1 tvg-name="ARD" tvg-logo="logo.png" group-title="German",ARD HD
-    
     channel_info = {
         'name': '',
         'group': None,
@@ -235,29 +215,24 @@ def parse_extinf_line(extinf_line):
         'tvg_id': None
     }
     
-    # Extract the channel name (after the last comma)
     if ',' in extinf_line:
         parts = extinf_line.rsplit(',', 1)
         if len(parts) == 2:
             channel_info['name'] = parts[1].strip()
     
     # Extract attributes using regex
-    # group-title="..."
     group_match = re.search(r'group-title="([^"]*)"', extinf_line)
     if group_match:
         channel_info['group'] = group_match.group(1)
     
-    # tvg-logo="..."
     logo_match = re.search(r'tvg-logo="([^"]*)"', extinf_line)
     if logo_match:
         channel_info['logo'] = logo_match.group(1)
     
-    # tvg-name="..."
     tvg_name_match = re.search(r'tvg-name="([^"]*)"', extinf_line)
     if tvg_name_match:
         channel_info['tvg_name'] = tvg_name_match.group(1)
     
-    # tvg-id="..."
     tvg_id_match = re.search(r'tvg-id="([^"]*)"', extinf_line)
     if tvg_id_match:
         channel_info['tvg_id'] = tvg_id_match.group(1)
@@ -266,7 +241,6 @@ def parse_extinf_line(extinf_line):
 
 def sanitize_playlist_name(name):
     """Sanitize playlist name for use in URLs."""
-    # Remove special characters and replace spaces with underscores
     sanitized = re.sub(r'[^\w\s-]', '', name)
     sanitized = re.sub(r'[-\s]+', '_', sanitized)
     return sanitized.strip('_')
@@ -276,23 +250,18 @@ def generate_m3u_content(channels):
     lines = ['#EXTM3U']
     
     for channel in channels:
-        # Build EXTINF line
         extinf_parts = ['#EXTINF:-1']
         
         if channel.get('tvg_id'):
             extinf_parts.append(f'tvg-id="{channel["tvg_id"]}"')
-        
         if channel.get('tvg_name'):
             extinf_parts.append(f'tvg-name="{channel["tvg_name"]}"')
-        
         if channel.get('logo'):
             extinf_parts.append(f'tvg-logo="{channel["logo"]}"')
-        
         if channel.get('group'):
             extinf_parts.append(f'group-title="{channel["group"]}"')
         
         extinf_line = ' '.join(extinf_parts) + f',{channel["name"]}'
-        
         lines.append(extinf_line)
         lines.append(channel['url'])
     
@@ -322,10 +291,8 @@ def upload_file():
         if not file.filename.lower().endswith(('.m3u', '.m3u8')):
             return jsonify({'success': False, 'error': 'Datei muss eine M3U Playlist sein'}), 400
         
-        # Read and parse file content
         content = file.read().decode('utf-8', errors='ignore')
         
-        # Validate content
         is_valid, validation_message = validate_m3u_content(content)
         if not is_valid:
             return jsonify({'success': False, 'error': validation_message}), 400
@@ -369,17 +336,14 @@ def save_playlist():
         playlist_name = data.get('name', f'Playlist_{datetime.now().strftime("%Y%m%d_%H%M%S")}')
         replace_existing = data.get('replace_existing', False)
         
-        # Sanitize the name for URL usage
         sanitized_name = sanitize_playlist_name(playlist_name)
         
-        # Check if name already exists and replacement not allowed
         if sanitized_name in named_playlists and not replace_existing:
             return jsonify({
                 'success': False, 
                 'error': f'Playlist-Name "{playlist_name}" ist bereits vergeben'
             })
         
-        # Generate unique ID for internal storage
         playlist_id = str(uuid.uuid4())
         
         playlist_data = {
@@ -391,7 +355,6 @@ def save_playlist():
             'updated_at': datetime.now().isoformat()
         }
         
-        # Store in both dictionaries
         playlists[playlist_id] = playlist_data
         named_playlists[sanitized_name] = playlist_data
         
@@ -404,6 +367,7 @@ def save_playlist():
         })
         
     except Exception as e:
+        app.logger.error(f"Save error: {str(e)}")
         return jsonify({'success': False, 'error': f'Fehler beim Speichern der Playlist: {str(e)}'}), 500
 
 @app.route('/api/export', methods=['POST'])
@@ -418,7 +382,6 @@ def export_playlist():
         channels = data['channels']
         m3u_content = generate_m3u_content(channels)
         
-        # Create temporary file
         temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.m3u', delete=False, encoding='utf-8')
         temp_file.write(m3u_content)
         temp_file.close()
@@ -431,9 +394,9 @@ def export_playlist():
         )
         
     except Exception as e:
+        app.logger.error(f"Export error: {str(e)}")
         return jsonify({'success': False, 'error': f'Fehler beim Exportieren: {str(e)}'}), 500
     finally:
-        # Clean up temporary file
         try:
             if 'temp_file' in locals():
                 os.unlink(temp_file.name)
@@ -444,7 +407,6 @@ def export_playlist():
 @app.route('/playlist/<playlist_name>.m3u')
 def serve_playlist_by_name(playlist_name):
     """Serve playlist by name with .m3u extension support."""
-    # Remove .m3u extension if present for lookup
     if playlist_name.endswith('.m3u'):
         playlist_name = playlist_name[:-4]
     
@@ -455,10 +417,8 @@ def serve_playlist_by_name(playlist_name):
     
     playlist_data = named_playlists[sanitized_name]
     channels = playlist_data['channels']
-    
     m3u_content = generate_m3u_content(channels)
     
-    # Create temporary file
     temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.m3u', delete=False, encoding='utf-8')
     temp_file.write(m3u_content)
     temp_file.close()
@@ -471,92 +431,15 @@ def serve_playlist_by_name(playlist_name):
             mimetype='audio/x-mpegurl'
         )
     finally:
-        # Clean up temporary file
         try:
             os.unlink(temp_file.name)
         except:
             pass
 
-@app.route('/playlist/<playlist_id>')
-def serve_playlist_by_id(playlist_id):
-    """Serve playlist by ID (legacy support)."""
-    if playlist_id not in playlists:
-        return "Playlist not found", 404
-    
-    playlist_data = playlists[playlist_id]
-    channels = playlist_data['channels']
-    
-    m3u_content = generate_m3u_content(channels)
-    
-    # Create temporary file
-    temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.m3u', delete=False, encoding='utf-8')
-    temp_file.write(m3u_content)
-    temp_file.close()
-    
-    try:
-        return send_file(
-            temp_file.name,
-            as_attachment=False,
-            download_name=f'{playlist_data["sanitized_name"]}.m3u',
-            mimetype='audio/x-mpegurl'
-        )
-    finally:
-        # Clean up temporary file
-        try:
-            os.unlink(temp_file.name)
-        except:
-            pass
-
-# Enhanced application initialization with route debugging
-
-def initialize_app():
-    """Initialize application with proper error handling and route debugging"""
-    try:
-        # Ensure upload directories exist with proper error handling
-        upload_dir = app.config['UPLOAD_FOLDER']
-        playlists_dir = app.config['SAVED_PLAYLISTS_FOLDER']
-        
-        for directory in [upload_dir, playlists_dir]:
-            try:
-                os.makedirs(directory, exist_ok=True)
-                app.logger.info(f"Directory initialized: {directory}")
-            except OSError as e:
-                app.logger.warning(f"Could not create directory {directory}: {str(e)}")
-        
-        # Debug route registration
-        app.logger.info("Registered routes:")
-        for rule in app.url_map.iter_rules():
-            app.logger.info(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
-        
-        # Test basic Flask functionality with app context
-        with app.app_context():
-            try:
-                # Test route generation
-                test_routes = ['index', 'health_check', 'ping_simple']
-                for route in test_routes:
-                    try:
-                        url = url_for(route)
-                        app.logger.info(f"Route {route} -> {url}")
-                    except Exception as e:
-                        app.logger.warning(f"Route {route} test failed: {str(e)}")
-                
-                app.logger.info("Flask URL routing initialized successfully")
-            except Exception as e:
-                app.logger.warning(f"URL routing test failed: {str(e)}")
-        
-        app.logger.info("IPTV M3U Sorter application initialized successfully")
-        
-    except Exception as e:
-        app.logger.error(f"Application initialization failed: {str(e)}")
-        # Don't fail completely - let the app start in degraded mode
-
-# Initialize the application
-initialize_app()
-
-# Error handlers for production stability
+# Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
-    """Handle 404 errors gracefully with better debugging"""
+    """Handle 404 errors gracefully"""
     app.logger.warning(f"404 error for path: {request.path}, method: {request.method}")
     
     if request.path.startswith('/api/'):
@@ -606,6 +489,45 @@ def file_too_large_error(error):
     except Exception as e:
         return f"Application error: {str(e)}", 500
 
+# Enhanced application initialization
+def initialize_app():
+    """Initialize application with proper error handling"""
+    try:
+        upload_dir = app.config['UPLOAD_FOLDER']
+        playlists_dir = app.config['SAVED_PLAYLISTS_FOLDER']
+        
+        for directory in [upload_dir, playlists_dir]:
+            try:
+                os.makedirs(directory, exist_ok=True)
+                app.logger.info(f"Directory initialized: {directory}")
+            except OSError as e:
+                app.logger.warning(f"Could not create directory {directory}: {str(e)}")
+        
+        app.logger.info("Registered routes:")
+        for rule in app.url_map.iter_rules():
+            app.logger.info(f"  {rule.methods} {rule.rule} -> {rule.endpoint}")
+        
+        with app.app_context():
+            try:
+                test_routes = ['index', 'health_check', 'ping_simple']
+                for route in test_routes:
+                    try:
+                        url = url_for(route)
+                        app.logger.info(f"Route {route} -> {url}")
+                    except Exception as e:
+                        app.logger.warning(f"Route {route} test failed: {str(e)}")
+                
+                app.logger.info("Flask URL routing initialized successfully")
+            except Exception as e:
+                app.logger.warning(f"URL routing test failed: {str(e)}")
+        
+        app.logger.info("IPTV M3U Sorter application initialized successfully")
+        
+    except Exception as e:
+        app.logger.error(f"Application initialization failed: {str(e)}")
+
+# Initialize the application
+initialize_app()
+
 if __name__ == '__main__':
-    # Development mode only - Gunicorn handles production
     app.run(debug=True, host='0.0.0.0', port=5000)
