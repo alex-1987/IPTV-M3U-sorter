@@ -636,8 +636,28 @@
         }
         
         function setChannelStatus(index, status) {
-            const statusContainer = document.getElementById(`status-${index}`);
-            if (!statusContainer) return;
+            console.log('Setting status for channel:', index, 'to:', status);
+            
+            // Try to find status container by ID first
+            let statusContainer = document.getElementById(`status-${index}`);
+            
+            // If not found, try to find it by channel item index
+            if (!statusContainer) {
+                const channelItems = document.querySelectorAll('.channel-item');
+                const channelItem = channelItems[index];
+                if (channelItem) {
+                    statusContainer = channelItem.querySelector('.channel-status-indicator');
+                    // Set the ID if it doesn't have one
+                    if (statusContainer && !statusContainer.id) {
+                        statusContainer.id = `status-${index}`;
+                    }
+                }
+            }
+            
+            if (!statusContainer) {
+                console.warn('Status container not found for index:', index);
+                return;
+            }
             
             let icon = '';
             let className = '';
@@ -666,13 +686,27 @@
             }
             
             statusContainer.innerHTML = `<span class="status-icon ${className}" title="${title}">${icon}</span>`;
+            console.log('Status set successfully for channel:', index, 'HTML:', statusContainer.innerHTML);
         }
         
         function clearAllStatusIcons() {
+            console.log('Clearing all status icons...');
+            
+            // Clear by ID
             const statusContainers = document.querySelectorAll('[id^="status-"]');
+            console.log('Found status containers by ID:', statusContainers.length);
             statusContainers.forEach(container => {
                 container.innerHTML = '';
             });
+            
+            // Also clear by class name as fallback
+            const statusIndicators = document.querySelectorAll('.channel-status-indicator');
+            console.log('Found status indicators by class:', statusIndicators.length);
+            statusIndicators.forEach(indicator => {
+                indicator.innerHTML = '';
+            });
+            
+            console.log('All status icons cleared');
         }
     </script>
 </body>
