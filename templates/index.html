@@ -319,6 +319,9 @@
                     if (typeof window.sorter.updateStats === 'function') {
                         window.sorter.updateStats();
                     }
+                    
+                    // WICHTIG: Speichere die Änderungen persistent
+                    saveChannelsToServer();
                 }
                 
                 // Update the channel numbers for remaining items
@@ -403,6 +406,9 @@
                     if (typeof window.sorter.updateStats === 'function') {
                         window.sorter.updateStats();
                     }
+                    
+                    // WICHTIG: Speichere die Änderungen persistent
+                    saveChannelsToServer();
                 }
                 
                 // Update remaining channel numbers
@@ -708,6 +714,71 @@
             });
             
             console.log('All status icons cleared');
+        }
+        
+        // Function to save channel changes to server
+        async function saveChannelsToServer() {
+            console.log('Saving channels to server...');
+            
+            if (!window.sorter || !window.sorter.channels) {
+                console.warn('No sorter or channels data available for saving');
+                return;
+            }
+            
+            try {
+                // Get current playlist ID if available
+                const playlistId = window.sorter.currentPlaylistId || 'current_session';
+                
+                // Prepare the data to save
+                const saveData = {
+                    channels: window.sorter.channels,
+                    metadata: {
+                        totalChannels: window.sorter.channels.length,
+                        lastModified: new Date().toISOString(),
+                        action: 'channel_deletion'
+                    }
+                };
+                
+                // Save to server using the existing save API
+                const response = await fetch('/api/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: `modified_${playlistId}`,
+                        data: saveData,
+                        overwrite: true
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Channels successfully saved to server:', result);
+                    
+                    // Update the current playlist ID if we got a new one
+                    if (result.id) {
+                        window.sorter.currentPlaylistId = result.id;
+                    }
+                } else {
+                    console.error('Failed to save channels to server:', response.status);
+                }
+                
+            } catch (error) {
+                console.error('Error saving channels to server:', error);
+                
+                // Fallback: Try to save to localStorage
+                try {
+                    const fallbackData = {
+                        channels: window.sorter.channels,
+                        timestamp: Date.now()
+                    };
+                    localStorage.setItem('iptv_modified_channels', JSON.stringify(fallbackData));
+                    console.log('Channels saved to localStorage as fallback');
+                } catch (localError) {
+                    console.error('Failed to save to localStorage:', localError);
+                }
+            }
         }
     </script>
 </body>
