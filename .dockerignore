@@ -48,16 +48,36 @@ logs/
 .git/
 .gitignore
 
-# Documentation
-README.md
-*.md
+# Documentation (keep README.md for Docker Hub)
+DOCKER_HUB_GUIDE.md
+DOCKER_README.md
 
-# Docker
+# Docker development files
 docker-compose.yml
-Dockerfile
 .dockerignore
 
-# Development files
+# Development and test files
 test_*.py
 *_test.py
 tests/
+docker-test.bat
+docker-hub-push.bat
+
+# Example files (optional - you can include these)
+example_playlist.m3u
+deu.m3u
+
+# Windows batch files (keep only essential ones)
+setup.bat
+start_server.bat
+restart_server.py
+
+# Uploads and saved data (will be mounted as volumes)
+uploads/*
+saved_playlists/*
+playlists/*
+
+# Keep uploads and saved_playlists directories but not their contents
+!uploads/.gitkeep
+!saved_playlists/.gitkeep
+!playlists/.gitkeep

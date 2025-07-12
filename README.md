@@ -41,8 +41,26 @@ A modern, web-based application for sorting and managing IPTV M3U playlists with
 
 ## 🚀 Quick Start
 
-### Option 1: Docker (Recommended)
-The easiest way to get started:
+### Option 1: Docker Hub (Easiest)
+Pull and run directly from Docker Hub:
+
+```bash
+# Simple run
+docker run -d -p 5000:5000 alex1987/iptv-m3u-sorter:latest
+
+# With persistent data
+docker run -d -p 5000:5000 \
+  -v ./uploads:/app/uploads \
+  -v ./saved_playlists:/app/saved_playlists \
+  alex1987/iptv-m3u-sorter:latest
+
+# Using docker-compose
+curl -o docker-compose.yml https://raw.githubusercontent.com/alex-1987/IPTV-M3U-sorter/main/docker-compose.yml
+docker-compose up -d
+```
+
+### Option 2: Build from Source
+Clone and build locally:
 
 1. **Prerequisites**: Make sure Docker and Docker Compose are installed
 2. **Clone & Run**:
@@ -58,7 +76,7 @@ The easiest way to get started:
    ```
 3. **Access**: Open http://localhost:5000 in your browser
 
-### Option 2: Manual Installation
+### Option 3: Manual Installation
 
 1. **Clone Repository**:
    ```bash
@@ -78,14 +96,25 @@ The easiest way to get started:
 
 4. **Access**: Open http://localhost:5000 in your browser
 
+## 🐳 Docker Hub
+
+[![Docker Hub](https://img.shields.io/docker/pulls/alex1987/iptv-m3u-sorter?style=flat-square&logo=docker)](https://hub.docker.com/r/alex1987/iptv-m3u-sorter)
+[![Docker Image Size](https://img.shields.io/docker/image-size/alex1987/iptv-m3u-sorter/latest?style=flat-square&logo=docker)](https://hub.docker.com/r/alex1987/iptv-m3u-sorter)
+
+**Available Tags:**
+- `alex1987/iptv-m3u-sorter:latest` - Latest stable release
+- `alex1987/iptv-m3u-sorter:v2.0.0` - Specific version
+- `alex1987/iptv-m3u-sorter:stable` - Stable release
+
 ## 🐳 Docker Commands
 
-| Action | Windows | Linux/Mac |
-|--------|---------|-----------|
-| **Start** | `start.bat` | `docker-compose up -d` |
-| **Stop** | `stop.bat` | `docker-compose down` |
-| **Update** | `update.bat` | `docker-compose up -d --build` |
-| **Logs** | `docker-compose logs -f` | `docker-compose logs -f` |
+| Action | Windows | Linux/Mac | Docker Hub |
+|--------|---------|-----------|------------|
+| **Quick Start** | `docker run -d -p 5000:5000 alex1987/iptv-m3u-sorter` | `docker run -d -p 5000:5000 alex1987/iptv-m3u-sorter` | ✅ Ready to use |
+| **Local Build** | `start.bat` | `docker-compose up -d` | Build from source |
+| **Stop** | `stop.bat` | `docker-compose down` | `docker stop <container>` |
+| **Update** | `update.bat` | `docker-compose pull && docker-compose up -d` | `docker pull alex1987/iptv-m3u-sorter:latest` |
+| **Logs** | `docker-compose logs -f` | `docker-compose logs -f` | `docker logs <container>` |
 
 ## 📁 Project Structure
 
