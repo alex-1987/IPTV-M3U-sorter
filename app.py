@@ -56,24 +56,38 @@ app.config.update(
 
 # Handle SERVER_NAME configuration properly for reverse proxy
 server_name = os.environ.get('SERVER_NAME')
-if server_name and server_name.strip():
-    # Only set SERVER_NAME if explicitly provided and not empty
+if server_name and server_name.strip() and server_name != '':
+    # Only set SERVER_NAME if explicitly provided, not empty, and not just whitespace
     app.config['SERVER_NAME'] = server_name.strip()
-    app.logger.info(f"SERVER_NAME configured: {server_name}")
+    app.logger.info(f"SERVER_NAME configured: {server_name.strip()}")
 else:
-    # Don't set SERVER_NAME for localhost/container access
-    # This prevents warnings when accessing via localhost:5000
-    app.config['SERVER_NAME'] = None
-    app.logger.info("SERVER_NAME not set - using default behavior for reverse proxy")
+    # Don't set SERVER_NAME at all for localhost/container access
+    # This prevents warnings when accessing via localhost:5000 or reverse proxy
+    if 'SERVER_NAME' in app.config:
+        del app.config['SERVER_NAME']
+    app.logger.info("SERVER_NAME not configured - using Flask default behavior for reverse proxy")
 
-# Add request context processor for URL generation
+# Enhanced request context handler for reverse proxy
 @app.before_request
 def handle_reverse_proxy():
-    """Handle reverse proxy URL generation"""
-    if not app.config.get('SERVER_NAME'):
-        # For reverse proxy setups without SERVER_NAME
-        # Flask will use the Host header from the request
-        pass
+    """Handle reverse proxy URL generation and prevent SERVER_NAME conflicts"""
+    # For reverse proxy setups, let Flask use the Host header from the request
+    # This allows both localhost:5000 and domain.com access without warnings
+    pass
+
+# Add URL generation context for reverse proxy
+@app.context_processor
+def inject_url_helpers():
+    """Inject URL helpers that work with reverse proxy"""
+    def external_url_for(endpoint, **values):
+        """Generate external URLs that work with reverse proxy"""
+        if app.config.get('SERVER_NAME'):
+            return url_for(endpoint, _external=True, **values)
+        else:
+            # For reverse proxy without SERVER_NAME, use request context
+            return url_for(endpoint, _external=True, **values)
+    
+    return dict(external_url_for=external_url_for)
 
 # Security headers middleware
 @app.after_request

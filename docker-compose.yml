@@ -13,18 +13,41 @@ services:
       - ./saved_playlists:/app/saved_playlists
       # - ./templates:/app/templates  ❌ Remove this line!
     environment:
+      # Basic Flask settings
       - FLASK_ENV=${FLASK_ENV:-production}
       - FLASK_DEBUG=${FLASK_DEBUG:-0}
       - HOST=0.0.0.0
       - PORT=5000
+      
+      # Security settings
       - SECRET_KEY=${SECRET_KEY:-}
       - MAX_FILE_SIZE=${MAX_FILE_SIZE:-52428800}
-      - HTTPS_ENABLED=${HTTPS_ENABLED:-true}
-      - URL_SCHEME=${URL_SCHEME:-https}
-      - SERVER_NAME=${SERVER_NAME:-}  # Leave empty for localhost access
+      - HTTPS_ENABLED=${HTTPS_ENABLED:-false}
+      
+      # Reverse proxy settings - Only set SERVER_NAME if explicitly provided
+      - URL_SCHEME=${URL_SCHEME:-http}
       - APP_ROOT=${APP_ROOT:-/}
-      - USER_UID=${USER_UID:-1000}
-      - USER_GID=${USER_GID:-1000}
+      # Only include SERVER_NAME if it's actually set and not empty
+      ${SERVER_NAME:+- SERVER_NAME=${SERVER_NAME}}
+      
+      # Domain for reverse proxy discovery (separate from Flask SERVER_NAME)
+      - DOMAIN=${DOMAIN:-localhost}
+      
+      # Proxy fix settings
+      - PROXY_FIX_X_FOR=${PROXY_FIX_X_FOR:-1}
+      - PROXY_FIX_X_PROTO=${PROXY_FIX_X_PROTO:-1}
+      - PROXY_FIX_X_HOST=${PROXY_FIX_X_HOST:-1}
+      - PROXY_FIX_X_PREFIX=${PROXY_FIX_X_PREFIX:-1}
+      
+      # Security headers
+      - SECURE_HEADERS=${SECURE_HEADERS:-true}
+      - ENABLE_CSRF_PROTECTION=${ENABLE_CSRF_PROTECTION:-true}
+      
+      # Gunicorn settings
+      - WORKERS=${WORKERS:-4}
+      - WORKER_CLASS=${WORKER_CLASS:-gevent}
+      - WORKER_CONNECTIONS=${WORKER_CONNECTIONS:-1000}
+      - TIMEOUT=${TIMEOUT:-120}
     restart: unless-stopped
     networks:
       - iptv-network
