@@ -1,0 +1,21 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="1" tvg-name="BBC One" tvg-logo="https://example.com/bbc1.png" group-title="UK Channels",BBC One
+http://example.com/stream/bbc1
+#EXTINF:-1 tvg-id="2" tvg-name="BBC Two" tvg-logo="https://example.com/bbc2.png" group-title="UK Channels",BBC Two
+http://example.com/stream/bbc2
+#EXTINF:-1 tvg-id="3" tvg-name="ITV" tvg-logo="https://example.com/itv.png" group-title="UK Channels",ITV
+http://example.com/stream/itv
+#EXTINF:-1 tvg-id="4" tvg-name="Channel 4" tvg-logo="https://example.com/c4.png" group-title="UK Channels",Channel 4
+http://example.com/stream/c4
+#EXTINF:-1 tvg-id="5" tvg-name="CNN International" tvg-logo="https://example.com/cnn.png" group-title="News",CNN International
+http://example.com/stream/cnn
+#EXTINF:-1 tvg-id="6" tvg-name="BBC World News" tvg-logo="https://example.com/bbcworld.png" group-title="News",BBC World News
+http://example.com/stream/bbcworld
+#EXTINF:-1 tvg-id="7" tvg-name="Discovery Channel" tvg-logo="https://example.com/discovery.png" group-title="Documentary",Discovery Channel
+http://example.com/stream/discovery
+#EXTINF:-1 tvg-id="8" tvg-name="National Geographic" tvg-logo="https://example.com/natgeo.png" group-title="Documentary",National Geographic
+http://example.com/stream/natgeo
+#EXTINF:-1 tvg-id="9" tvg-name="ESPN" tvg-logo="https://example.com/espn.png" group-title="Sports",ESPN
+http://example.com/stream/espn
+#EXTINF:-1 tvg-id="10" tvg-name="Sky Sports" tvg-logo="https://example.com/skysports.png" group-title="Sports",Sky Sports
+http://example.com/stream/skysports

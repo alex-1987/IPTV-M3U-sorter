@@ -1,0 +1,72 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run Flask Development Server",
+            "type": "shell",
+            "command": "${workspaceFolder}\\venv\\Scripts\\python",
+            "args": ["app.py"],
+            "group": "build",
+            "isBackground": true,
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "detail": "Start the Flask development server with debug mode enabled"
+        },
+        {
+            "label": "Install Dependencies",
+            "type": "shell",
+            "command": "${workspaceFolder}\\venv\\Scripts\\pip",
+            "args": ["install", "-r", "requirements.txt"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "detail": "Install Python dependencies from requirements.txt"
+        },
+        {
+            "label": "Create Virtual Environment",
+            "type": "shell",
+            "command": "python",
+            "args": ["-m", "venv", "venv"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "detail": "Create a new Python virtual environment"
+        },
+        {
+            "label": "Activate Virtual Environment",
+            "type": "shell",
+            "command": "${workspaceFolder}\\venv\\Scripts\\activate.bat",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "new"
+            },
+            "detail": "Activate the Python virtual environment"
+        },
+        {
+            "label": "Setup Development Environment",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Create Virtual Environment",
+                "Install Dependencies"
+            ],
+            "group": "build",
+            "detail": "Complete setup: create venv and install dependencies"
+        }
+    ]
+}
