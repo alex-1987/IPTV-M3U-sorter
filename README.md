@@ -41,6 +41,12 @@ A modern, web-based application for sorting and managing IPTV M3U playlists with
 
 ## 🚀 Quick Start
 
+### 🐧 Linux Users
+See [LINUX_QUICKSTART.md](LINUX_QUICKSTART.md) for the **super simple Linux setup**:
+```bash
+make setup && make start  # That's it! 🎉
+```
+
 ### Option 1: Docker Hub (Easiest)
 Pull and run directly from Docker Hub:
 
