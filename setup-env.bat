@@ -17,9 +17,15 @@ echo.
 set /p domain="Enter your domain (or localhost for local use): "
 set /p https="Enable HTTPS? (y/n): "
 set /p port="Host port (default 5000): "
+echo.
+echo 🔐 Docker User Configuration:
+set /p user_uid="User UID (default 1000): "
+set /p user_gid="User GID (default 1000): "
 
 if "%port%"=="" set port=5000
 if "%domain%"=="" set domain=localhost
+if "%user_uid%"=="" set user_uid=1000
+if "%user_gid%"=="" set user_gid=1000
 
 echo.
 echo 📝 Generating configuration...
@@ -51,6 +57,10 @@ echo # Domain and Proxy Settings >> .env
 echo SERVER_NAME=%domain% >> .env
 echo DOMAIN=%domain% >> .env
 echo APP_ROOT=/ >> .env
+echo. >> .env
+echo # Docker User Configuration >> .env
+echo USER_UID=%user_uid% >> .env
+echo USER_GID=%user_gid% >> .env
 
 echo.
 echo ✅ Configuration saved to .env

@@ -21,9 +21,14 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p uploads saved_playlists templates static
 
-# Create non-root user for security
-RUN adduser --disabled-password --gecos '' appuser && \
-    chown -R appuser:appuser /app
+# Accept custom UID and GID as build arguments
+ARG USER_UID=1000
+ARG USER_GID=1000
+
+# Create non-root user with configurable UID:GID
+RUN groupadd --gid ${USER_GID} appgroup && \
+    useradd --uid ${USER_UID} --gid appgroup --shell /bin/bash --create-home appuser && \
+    chown -R appuser:appgroup /app
 USER appuser
 
 # Set environment variables

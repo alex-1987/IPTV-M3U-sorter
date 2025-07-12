@@ -154,4 +154,50 @@ WORKERS=8
 WORKER_CONNECTIONS=2000
 MAX_REQUESTS=500
 TIMEOUT=180
+
+# UID/GID für Volume Permissions anpassen:
+USER_UID=1001
+USER_GID=1001
+```
+
+## 🔐 User ID (UID) und Group ID (GID) Konfiguration
+
+Das Docker Image unterstützt beliebige UID/GID für korrekte Volume-Permissions:
+
+### Automatische Erkennung:
+```bash
+# Deine aktuelle UID/GID anzeigen
+echo "Your UID: $(id -u)"
+echo "Your GID: $(id -g)"
+
+# Setup Script nutzt automatisch deine IDs
+./setup-env.sh
+```
+
+### Manuelle Konfiguration:
+```bash
+# .env editieren
+nano .env
+
+# Beispiel für spezifische UID/GID:
+USER_UID=1001
+USER_GID=1001
+```
+
+### Docker Build mit benutzerdefinierten IDs:
+```bash
+# Direkter Build mit eigener UID/GID
+docker build --build-arg USER_UID=$(id -u) --build-arg USER_GID=$(id -g) -t iptv-sorter .
+
+# Docker Compose nutzt automatisch die .env Werte
+docker-compose up -d --build
+```
+
+### Volume Permission Probleme lösen:
+```bash
+# Falls Permission-Probleme auftreten:
+sudo chown -R $(id -u):$(id -g) ./uploads ./saved_playlists
+
+# Oder mit spezifischen IDs:
+sudo chown -R 1001:1001 ./uploads ./saved_playlists
 ```

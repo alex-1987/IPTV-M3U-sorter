@@ -19,10 +19,16 @@ echo
 read -p "Enter your domain (or localhost for local use): " domain
 read -p "Enable HTTPS? (y/n): " https
 read -p "Host port (default 5000): " port
+echo
+echo "🔐 Docker User Configuration (für Volume Permissions):"
+read -p "User UID (default 1000, use 'id -u' to check): " user_uid
+read -p "User GID (default 1000, use 'id -g' to check): " user_gid
 
 # Set defaults
 port=${port:-5000}
 domain=${domain:-localhost}
+user_uid=${user_uid:-1000}
+user_gid=${user_gid:-1000}
 
 echo
 echo "📝 Generating configuration..."
@@ -70,6 +76,10 @@ PROXY_FIX_X_HOST=1
 # Security Headers
 SECURE_HEADERS=true
 ENABLE_CSRF_PROTECTION=true
+
+# Docker User Configuration
+USER_UID=$user_uid
+USER_GID=$user_gid
 EOF
 
 echo

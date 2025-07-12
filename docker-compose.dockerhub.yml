@@ -2,11 +2,7 @@ version: '3.8'
 
 services:
   iptv-sorter:
-    build: 
-      context: .
-      args:
-        USER_UID: ${USER_UID:-1000}
-        USER_GID: ${USER_GID:-1000}
+    image: alexfl1987/iptv-m3u-sorter:latest-stable
     container_name: iptv-m3u-sorter
     user: "${USER_UID:-1000}:${USER_GID:-1000}"
     ports:
@@ -15,7 +11,6 @@ services:
       - ./uploads:/app/uploads
       - ./saved_playlists:/app/saved_playlists
       - ./templates:/app/templates
-      - ./static:/app/static
     environment:
       # Basic Flask settings
       - FLASK_ENV=${FLASK_ENV:-production}
@@ -25,7 +20,7 @@ services:
       
       # Security settings
       - SECRET_KEY=${SECRET_KEY:-}
-      - MAX_FILE_SIZE=${MAX_FILE_SIZE:-52428800}  # 50MB
+      - MAX_FILE_SIZE=${MAX_FILE_SIZE:-52428800}
       - HTTPS_ENABLED=${HTTPS_ENABLED:-false}
       
       # Reverse proxy settings
@@ -33,20 +28,41 @@ services:
       - SERVER_NAME=${SERVER_NAME:-}
       - APP_ROOT=${APP_ROOT:-/}
       
+      # Proxy fix settings
+      - PROXY_FIX_ENABLED=${PROXY_FIX_ENABLED:-true}
+      - PROXY_FIX_X_FOR=${PROXY_FIX_X_FOR:-1}
+      - PROXY_FIX_X_PROTO=${PROXY_FIX_X_PROTO:-1}
+      - PROXY_FIX_X_HOST=${PROXY_FIX_X_HOST:-1}
+      - PROXY_FIX_X_PREFIX=${PROXY_FIX_X_PREFIX:-1}
+      
+      # Security headers
+      - SECURE_HEADERS=${SECURE_HEADERS:-true}
+      - ENABLE_CSRF_PROTECTION=${ENABLE_CSRF_PROTECTION:-true}
+      
+      # Gunicorn settings (optional)
+      - WORKERS=${WORKERS:-4}
+      - WORKER_CLASS=${WORKER_CLASS:-gevent}
+      - WORKER_CONNECTIONS=${WORKER_CONNECTIONS:-1000}
+      - TIMEOUT=${TIMEOUT:-120}
+      
     restart: unless-stopped
     networks:
       - iptv-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     labels:
-      # Labels for reverse proxy discovery
+      # Labels for reverse proxy discovery (Traefik, etc.)
       - "traefik.enable=true"
       - "traefik.http.routers.iptv-sorter.rule=Host(`${DOMAIN:-localhost}`)"
       - "traefik.http.services.iptv-sorter.loadbalancer.server.port=5000"
+      # Nginx Proxy Manager compatibility
+      - "npm.enable=true"
+      - "npm.host=${DOMAIN:-localhost}"
+      - "npm.port=5000"
 
 networks:
   iptv-network:
