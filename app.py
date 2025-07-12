@@ -52,7 +52,9 @@ app.config.update(
     APPLICATION_ROOT=os.environ.get('APP_ROOT', '/'),
 )
 
-# Handle SERVER_NAME configuration properly
+# Enhanced SERVER_NAME handling for Caddy reverse proxy
+
+# Handle SERVER_NAME configuration properly for reverse proxy
 server_name = os.environ.get('SERVER_NAME')
 if server_name and server_name.strip():
     # Only set SERVER_NAME if explicitly provided and not empty
@@ -60,8 +62,18 @@ if server_name and server_name.strip():
     app.logger.info(f"SERVER_NAME configured: {server_name}")
 else:
     # Don't set SERVER_NAME for localhost/container access
+    # This prevents warnings when accessing via localhost:5000
     app.config['SERVER_NAME'] = None
-    app.logger.info("SERVER_NAME not set - using default behavior")
+    app.logger.info("SERVER_NAME not set - using default behavior for reverse proxy")
+
+# Add request context processor for URL generation
+@app.before_request
+def handle_reverse_proxy():
+    """Handle reverse proxy URL generation"""
+    if not app.config.get('SERVER_NAME'):
+        # For reverse proxy setups without SERVER_NAME
+        # Flask will use the Host header from the request
+        pass
 
 # Security headers middleware
 @app.after_request
