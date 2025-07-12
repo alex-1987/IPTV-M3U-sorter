@@ -40,18 +40,28 @@ app.config.update(
     SECRET_KEY=os.environ.get('SECRET_KEY', os.urandom(24)),
     MAX_CONTENT_LENGTH=int(os.environ.get('MAX_FILE_SIZE', 50 * 1024 * 1024)),  # 50MB default
     UPLOAD_FOLDER=os.environ.get('UPLOAD_FOLDER', 'uploads'),
-    PLAYLISTS_FOLDER=os.environ.get('SAVED_PLAYLISTS_FOLDER', 'saved_playlists'),
+    SAVED_PLAYLISTS_FOLDER=os.environ.get('SAVED_PLAYLISTS_FOLDER', 'saved_playlists'),
     
-    # Security settings
+    # Production security settings
     SESSION_COOKIE_SECURE=os.environ.get('HTTPS_ENABLED', 'false').lower() == 'true',
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     
-    # Reverse proxy settings
+    # Enhanced reverse proxy settings
     PREFERRED_URL_SCHEME=os.environ.get('URL_SCHEME', 'http'),
     APPLICATION_ROOT=os.environ.get('APP_ROOT', '/'),
-    SERVER_NAME=os.environ.get('SERVER_NAME', None)
 )
+
+# Handle SERVER_NAME configuration properly
+server_name = os.environ.get('SERVER_NAME')
+if server_name and server_name.strip():
+    # Only set SERVER_NAME if explicitly provided and not empty
+    app.config['SERVER_NAME'] = server_name.strip()
+    app.logger.info(f"SERVER_NAME configured: {server_name}")
+else:
+    # Don't set SERVER_NAME for localhost/container access
+    app.config['SERVER_NAME'] = None
+    app.logger.info("SERVER_NAME not set - using default behavior")
 
 # Security headers middleware
 @app.after_request
@@ -77,7 +87,7 @@ def add_security_headers(response):
 
 # Ensure upload directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['PLAYLISTS_FOLDER'], exist_ok=True)
+os.makedirs(app.config['SAVED_PLAYLISTS_FOLDER'], exist_ok=True)
 
 # Store playlists in memory (in production, use a database)
 playlists = {}
@@ -92,7 +102,7 @@ def health_check():
     try:
         # Check if required directories exist and are writable
         upload_dir = app.config['UPLOAD_FOLDER']
-        playlists_dir = app.config['PLAYLISTS_FOLDER']
+        playlists_dir = app.config['SAVED_PLAYLISTS_FOLDER']
         
         for directory in [upload_dir, playlists_dir]:
             if not os.path.exists(directory):
