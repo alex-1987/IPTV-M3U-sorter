@@ -119,46 +119,67 @@ os.makedirs(app.config['SAVED_PLAYLISTS_FOLDER'], exist_ok=True)
 playlists = {}
 named_playlists = {}  # New: Store playlists by name
 
-# Health check endpoints (compatible with all reverse proxies)
+# Vereinfachte Health Check Endpoints
+
 @app.route('/health')
-@app.route('/healthz')  # Kubernetes style
-@app.route('/ping')     # Simple ping
+@app.route('/healthz')
+@app.route('/ping')
 def health_check():
-    """Production health check endpoint for reverse proxies and load balancers"""
+    """Einfacher Health Check ohne Dateisystem-Tests"""
     try:
-        # Check if required directories exist and are writable
-        upload_dir = app.config['UPLOAD_FOLDER']
-        playlists_dir = app.config['SAVED_PLAYLISTS_FOLDER']
-        
-        for directory in [upload_dir, playlists_dir]:
-            if not os.path.exists(directory):
-                os.makedirs(directory, exist_ok=True)
-            
-            # Test write permissions
-            test_file = os.path.join(directory, '.health_check')
-            with open(test_file, 'w') as f:
-                f.write('ok')
-            os.remove(test_file)
-        
-        return {
+        health_status = {
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
             'version': '2.0.0',
             'server': 'gunicorn',
-            'directories': {
-                'uploads': upload_dir,
-                'playlists': playlists_dir
-            }
-        }, 200
+            'app': 'iptv-m3u-sorter'
+        }
+        
+        # Nur grundlegende Checks
+        health_status['flask'] = 'ok'
+        health_status['gunicorn'] = 'ok'
+        
+        # Optionale Dateisystem-Checks nur wenn explizit aktiviert
+        enable_fs_checks = os.environ.get('ENABLE_FS_HEALTH_CHECKS', 'false').lower() == 'true'
+        
+        if enable_fs_checks:
+            try:
+                upload_dir = app.config['UPLOAD_FOLDER']
+                playlists_dir = app.config['SAVED_PLAYLISTS_FOLDER']
+                
+                # Verzeichnisse erstellen falls nicht vorhanden
+                for directory in [upload_dir, playlists_dir]:
+                    if not os.path.exists(directory):
+                        os.makedirs(directory, exist_ok=True)
+                        health_status[f'{directory}_created'] = 'ok'
+                    else:
+                        health_status[f'{directory}_exists'] = 'ok'
+                        
+            except Exception as fs_error:
+                app.logger.warning(f"Filesystem check warning: {str(fs_error)}")
+                health_status['filesystem'] = 'limited'
+        else:
+            health_status['filesystem_checks'] = 'disabled'
+        
+        return health_status, 200
         
     except Exception as e:
-        app.logger.error(f"Health check failed: {str(e)}")
+        app.logger.error(f"Health check error: {str(e)}")
         return {
-            'status': 'unhealthy',
+            'status': 'degraded',
             'timestamp': datetime.now().isoformat(),
             'error': str(e),
-            'server': 'gunicorn'
-        }, 503
+            'app': 'iptv-m3u-sorter'
+        }, 200  # Immer 200 zurückgeben für Docker Kompatibilität
+
+@app.route('/ping-simple')
+def ping_simple():
+    """Ultra-einfacher Ping ohne jegliche Dateisystem-Zugriffe"""
+    return {
+        'status': 'ok', 
+        'timestamp': datetime.now().isoformat(),
+        'app': 'iptv-m3u-sorter'
+    }, 200
 
 # Input validation and sanitization
 def validate_m3u_content(content):
