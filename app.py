@@ -15,16 +15,24 @@ from urllib.parse import urlparse
 import tempfile
 import io
 import time
+import logging
 
 app = Flask(__name__)
+
+# Configure logging for production
+if not app.debug:
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(name)s %(message)s'
+    )
 
 # Configure for reverse proxy compatibility
 app.wsgi_app = ProxyFix(
     app.wsgi_app, 
-    x_for=1, 
-    x_proto=1, 
-    x_host=1, 
-    x_prefix=1
+    x_for=int(os.environ.get('PROXY_FIX_X_FOR', 1)),
+    x_proto=int(os.environ.get('PROXY_FIX_X_PROTO', 1)),
+    x_host=int(os.environ.get('PROXY_FIX_X_HOST', 1)),
+    x_prefix=int(os.environ.get('PROXY_FIX_X_PREFIX', 1))
 )
 
 # Enhanced security configuration
@@ -45,6 +53,28 @@ app.config.update(
     SERVER_NAME=os.environ.get('SERVER_NAME', None)
 )
 
+# Security headers middleware
+@app.after_request
+def add_security_headers(response):
+    """Add security headers for production"""
+    if os.environ.get('SECURE_HEADERS', 'true').lower() == 'true':
+        security_headers = {
+            'X-Content-Type-Options': 'nosniff',
+            'X-Frame-Options': 'SAMEORIGIN',
+            'X-XSS-Protection': '1; mode=block',
+            'Referrer-Policy': 'strict-origin-when-cross-origin'
+        }
+        
+        # Add HSTS for HTTPS
+        if os.environ.get('HTTPS_ENABLED', 'false').lower() == 'true':
+            security_headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        
+        for header, value in security_headers.items():
+            if not response.headers.get(header):
+                response.headers[header] = value
+    
+    return response
+
 # Ensure upload directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['PLAYLISTS_FOLDER'], exist_ok=True)
@@ -53,43 +83,12 @@ os.makedirs(app.config['PLAYLISTS_FOLDER'], exist_ok=True)
 playlists = {}
 named_playlists = {}  # New: Store playlists by name
 
-# Security headers middleware
-@app.after_request
-def add_security_headers(response):
-    """Add security headers if not set by reverse proxy"""
-    
-    # Only add if not already present (reverse proxy might set these)
-    security_headers = {
-        'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'SAMEORIGIN',  # Changed from DENY for embedding flexibility
-        'X-XSS-Protection': '1; mode=block',
-        'Referrer-Policy': 'strict-origin-when-cross-origin'
-    }
-    
-    for header, value in security_headers.items():
-        if not response.headers.get(header):
-            response.headers[header] = value
-    
-    # Content Security Policy (relaxed for reverse proxy compatibility)
-    if not response.headers.get('Content-Security-Policy'):
-        csp = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com; "
-            "style-src 'self' 'unsafe-inline' cdnjs.cloudflare.com; "
-            "font-src 'self' cdnjs.cloudflare.com; "
-            "img-src 'self' data:; "
-            "connect-src 'self'"
-        )
-        response.headers['Content-Security-Policy'] = csp
-    
-    return response
-
 # Health check endpoints (compatible with all reverse proxies)
 @app.route('/health')
 @app.route('/healthz')  # Kubernetes style
 @app.route('/ping')     # Simple ping
 def health_check():
-    """Health check endpoint for reverse proxies and load balancers"""
+    """Production health check endpoint for reverse proxies and load balancers"""
     try:
         # Check if required directories exist and are writable
         upload_dir = app.config['UPLOAD_FOLDER']
@@ -109,19 +108,20 @@ def health_check():
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
             'version': '2.0.0',
-            'app': 'iptv-m3u-sorter',
-            'checks': {
-                'directories': 'ok',
-                'permissions': 'ok'
+            'server': 'gunicorn',
+            'directories': {
+                'uploads': upload_dir,
+                'playlists': playlists_dir
             }
         }, 200
         
     except Exception as e:
+        app.logger.error(f"Health check failed: {str(e)}")
         return {
             'status': 'unhealthy',
             'timestamp': datetime.now().isoformat(),
             'error': str(e),
-            'app': 'iptv-m3u-sorter'
+            'server': 'gunicorn'
         }, 503
 
 # Input validation and sanitization
@@ -452,4 +452,5 @@ def serve_playlist_by_id(playlist_id):
             pass
 
 if __name__ == '__main__':
+    # Development mode only - Gunicorn handles production
     app.run(debug=True, host='0.0.0.0', port=5000)

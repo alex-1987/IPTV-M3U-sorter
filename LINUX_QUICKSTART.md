@@ -111,3 +111,47 @@ make start
 ```
 
 Diese Verzeichnisse werden automatisch erstellt und sind persistent.
+
+## 🚀 Production Server
+
+Die App läuft jetzt mit **Gunicorn** als Production WSGI Server:
+
+- ✅ **Keine Development Server Warnung mehr**
+- ✅ **Multi-Worker Support** (4 Worker standardmäßig)
+- ✅ **Gevent für bessere Performance**
+- ✅ **Production-optimiert**
+- ✅ **Automatic Worker Restarts**
+- ✅ **Non-root Security**
+
+### Performance Features:
+- **Workers**: Automatisch basierend auf CPU-Kernen
+- **Worker Class**: Gevent für async I/O
+- **Connections**: 1000 gleichzeitige Verbindungen pro Worker
+- **Memory Management**: Worker restart nach 1000 Requests
+
+### Monitoring:
+```bash
+# Logs anzeigen
+docker-compose logs -f iptv-sorter
+
+# Container Stats
+docker stats iptv-m3u-sorter
+
+# Health Check
+curl http://localhost:5000/health
+
+# Erweiterte Logs (mit Gunicorn info)
+make logs | grep gunicorn
+```
+
+### Konfiguration anpassen:
+```bash
+# .env editieren für Production tuning
+nano .env
+
+# Beispiel für High-Traffic Server:
+WORKERS=8
+WORKER_CONNECTIONS=2000
+MAX_REQUESTS=500
+TIMEOUT=180
+```
