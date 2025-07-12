@@ -5,6 +5,7 @@ A web application for uploading, sorting, and managing IPTV M3U playlists
 """
 
 from flask import Flask, render_template, request, jsonify, send_file, url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 import re
 import json
@@ -16,9 +17,33 @@ import io
 import time
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['PLAYLISTS_FOLDER'] = 'playlists'
+
+# Configure for reverse proxy compatibility
+app.wsgi_app = ProxyFix(
+    app.wsgi_app, 
+    x_for=1, 
+    x_proto=1, 
+    x_host=1, 
+    x_prefix=1
+)
+
+# Enhanced security configuration
+app.config.update(
+    SECRET_KEY=os.environ.get('SECRET_KEY', os.urandom(24)),
+    MAX_CONTENT_LENGTH=int(os.environ.get('MAX_FILE_SIZE', 50 * 1024 * 1024)),  # 50MB default
+    UPLOAD_FOLDER=os.environ.get('UPLOAD_FOLDER', 'uploads'),
+    PLAYLISTS_FOLDER=os.environ.get('SAVED_PLAYLISTS_FOLDER', 'saved_playlists'),
+    
+    # Security settings
+    SESSION_COOKIE_SECURE=os.environ.get('HTTPS_ENABLED', 'false').lower() == 'true',
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    
+    # Reverse proxy settings
+    PREFERRED_URL_SCHEME=os.environ.get('URL_SCHEME', 'http'),
+    APPLICATION_ROOT=os.environ.get('APP_ROOT', '/'),
+    SERVER_NAME=os.environ.get('SERVER_NAME', None)
+)
 
 # Ensure upload directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -27,6 +52,100 @@ os.makedirs(app.config['PLAYLISTS_FOLDER'], exist_ok=True)
 # Store playlists in memory (in production, use a database)
 playlists = {}
 named_playlists = {}  # New: Store playlists by name
+
+# Security headers middleware
+@app.after_request
+def add_security_headers(response):
+    """Add security headers if not set by reverse proxy"""
+    
+    # Only add if not already present (reverse proxy might set these)
+    security_headers = {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'SAMEORIGIN',  # Changed from DENY for embedding flexibility
+        'X-XSS-Protection': '1; mode=block',
+        'Referrer-Policy': 'strict-origin-when-cross-origin'
+    }
+    
+    for header, value in security_headers.items():
+        if not response.headers.get(header):
+            response.headers[header] = value
+    
+    # Content Security Policy (relaxed for reverse proxy compatibility)
+    if not response.headers.get('Content-Security-Policy'):
+        csp = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' cdnjs.cloudflare.com; "
+            "style-src 'self' 'unsafe-inline' cdnjs.cloudflare.com; "
+            "font-src 'self' cdnjs.cloudflare.com; "
+            "img-src 'self' data:; "
+            "connect-src 'self'"
+        )
+        response.headers['Content-Security-Policy'] = csp
+    
+    return response
+
+# Health check endpoints (compatible with all reverse proxies)
+@app.route('/health')
+@app.route('/healthz')  # Kubernetes style
+@app.route('/ping')     # Simple ping
+def health_check():
+    """Health check endpoint for reverse proxies and load balancers"""
+    try:
+        # Check if required directories exist and are writable
+        upload_dir = app.config['UPLOAD_FOLDER']
+        playlists_dir = app.config['PLAYLISTS_FOLDER']
+        
+        for directory in [upload_dir, playlists_dir]:
+            if not os.path.exists(directory):
+                os.makedirs(directory, exist_ok=True)
+            
+            # Test write permissions
+            test_file = os.path.join(directory, '.health_check')
+            with open(test_file, 'w') as f:
+                f.write('ok')
+            os.remove(test_file)
+        
+        return {
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'version': '2.0.0',
+            'app': 'iptv-m3u-sorter',
+            'checks': {
+                'directories': 'ok',
+                'permissions': 'ok'
+            }
+        }, 200
+        
+    except Exception as e:
+        return {
+            'status': 'unhealthy',
+            'timestamp': datetime.now().isoformat(),
+            'error': str(e),
+            'app': 'iptv-m3u-sorter'
+        }, 503
+
+# Input validation and sanitization
+def validate_m3u_content(content):
+    """Validate M3U file content for security"""
+    if not content:
+        return False, "Empty content"
+    
+    # Check file size
+    if len(content) > app.config['MAX_CONTENT_LENGTH']:
+        return False, "File too large"
+    
+    # Basic M3U validation
+    if not content.strip().startswith('#EXTM3U'):
+        return False, "Not a valid M3U file"
+    
+    # Check for potentially dangerous content
+    dangerous_patterns = ['<script', 'javascript:', 'data:text/html']
+    content_lower = content.lower()
+    for pattern in dangerous_patterns:
+        if pattern in content_lower:
+            return False, f"Potentially dangerous content detected: {pattern}"
+    
+    return True, "Valid"
 
 def parse_m3u_content(content):
     """Parse M3U file content and extract channel information."""
@@ -150,6 +269,12 @@ def upload_file():
         
         # Read and parse file content
         content = file.read().decode('utf-8', errors='ignore')
+        
+        # Validate content
+        is_valid, validation_message = validate_m3u_content(content)
+        if not is_valid:
+            return jsonify({'success': False, 'error': validation_message}), 400
+        
         channels = parse_m3u_content(content)
         
         if not channels:

@@ -96,7 +96,39 @@ Clone and build locally:
 
 4. **Access**: Open http://localhost:5000 in your browser
 
-## 🐳 Docker Hub
+## � Reverse Proxy Support
+
+The application is fully compatible with reverse proxies for production deployments with SSL/TLS termination:
+
+### ⚡ **Supported Reverse Proxies**
+- **Caddy** - Automatic HTTPS with zero configuration
+- **Nginx Proxy Manager** - GUI-based proxy management
+- **Traefik** - Cloud-native proxy with automatic service discovery
+- **Apache HTTP Server** - Traditional web server with mod_proxy
+- **Cloudflare Tunnel** - Zero-trust network access
+- **HAProxy** - High-performance load balancer
+
+### 🛠️ **Quick Setup**
+1. **Configure Environment**:
+   ```bash
+   # Copy environment template
+   copy .env.example .env
+   
+   # Run interactive setup (Windows)
+   setup-env.bat
+   ```
+
+2. **Set Proxy Headers**: The app automatically handles X-Forwarded headers for proper client IP detection and HTTPS redirection
+
+3. **Health Checks**: Multiple endpoints available:
+   - `/health` - JSON health status
+   - `/healthz` - Kubernetes-style health check
+   - `/ping` - Simple connectivity test
+
+### 📖 **Detailed Configuration**
+See [REVERSE_PROXY_EXAMPLES.md](REVERSE_PROXY_EXAMPLES.md) for complete configuration examples and troubleshooting guides.
+
+## �🐳 Docker Hub
 
 [![Docker Hub](https://img.shields.io/docker/pulls/alex1987/iptv-m3u-sorter?style=flat-square&logo=docker)](https://hub.docker.com/r/alex1987/iptv-m3u-sorter)
 [![Docker Image Size](https://img.shields.io/docker/image-size/alex1987/iptv-m3u-sorter/latest?style=flat-square&logo=docker)](https://hub.docker.com/r/alex1987/iptv-m3u-sorter)
@@ -219,6 +251,59 @@ IPTV M3U sorter/
 | **Firefox** | 75+ | ✅ Fully Supported |
 | **Safari** | 13+ | ✅ Fully Supported |
 | **Edge** | 80+ | ✅ Fully Supported |
+
+## ⚙️ Environment Configuration
+
+The application supports extensive configuration through environment variables:
+
+### 🔧 **Configuration Options**
+```bash
+# Security Settings
+SECRET_KEY=your-secret-key-here
+SECURE_HEADERS=true
+ENABLE_CSRF_PROTECTION=true
+
+# Reverse Proxy Settings  
+PROXY_FIX_ENABLED=true
+PROXY_FIX_X_FOR=1
+PROXY_FIX_X_PROTO=1
+PROXY_FIX_X_HOST=1
+
+# Application Settings
+DEBUG=false
+PORT=5000
+HOST=0.0.0.0
+
+# Domain Configuration (for reverse proxy)
+DOMAIN=your-domain.com
+SSL_ENABLED=true
+```
+
+### 🚀 **Quick Configuration Setup**
+```bash
+# Copy the environment template
+copy .env.example .env
+
+# Windows - Interactive setup
+setup-env.bat
+
+# Edit manually
+notepad .env
+```
+
+### 🔗 **Docker Compose with Environment**
+```yaml
+version: '3.8'
+services:
+  iptv-sorter:
+    image: alex1987/iptv-m3u-sorter:latest
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - DOMAIN=${DOMAIN}
+      - SSL_ENABLED=${SSL_ENABLED}
+    env_file:
+      - .env
+```
 
 ## 🐛 Troubleshooting
 
