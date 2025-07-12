@@ -52,20 +52,18 @@ app.config.update(
     APPLICATION_ROOT=os.environ.get('APP_ROOT', '/'),
 )
 
-# Enhanced SERVER_NAME handling for Caddy reverse proxy
+# Enhanced SERVER_NAME handling for Caddy reverse proxy - CORRECTED
 
 # Handle SERVER_NAME configuration properly for reverse proxy
 server_name = os.environ.get('SERVER_NAME')
-if server_name and server_name.strip() and server_name != '':
-    # Only set SERVER_NAME if explicitly provided, not empty, and not just whitespace
+if server_name and server_name.strip():
+    # Only set SERVER_NAME if explicitly provided and not empty
     app.config['SERVER_NAME'] = server_name.strip()
     app.logger.info(f"SERVER_NAME configured: {server_name.strip()}")
 else:
-    # Don't set SERVER_NAME at all for localhost/container access
-    # This prevents warnings when accessing via localhost:5000 or reverse proxy
-    if 'SERVER_NAME' in app.config:
-        del app.config['SERVER_NAME']
-    app.logger.info("SERVER_NAME not configured - using Flask default behavior for reverse proxy")
+    # Set to None instead of deleting to avoid KeyError
+    app.config['SERVER_NAME'] = None
+    app.logger.info("SERVER_NAME set to None - using Flask default behavior for reverse proxy")
 
 # Enhanced request context handler for reverse proxy
 @app.before_request
@@ -81,11 +79,16 @@ def inject_url_helpers():
     """Inject URL helpers that work with reverse proxy"""
     def external_url_for(endpoint, **values):
         """Generate external URLs that work with reverse proxy"""
-        if app.config.get('SERVER_NAME'):
-            return url_for(endpoint, _external=True, **values)
-        else:
-            # For reverse proxy without SERVER_NAME, use request context
-            return url_for(endpoint, _external=True, **values)
+        try:
+            if app.config.get('SERVER_NAME'):
+                return url_for(endpoint, _external=True, **values)
+            else:
+                # For reverse proxy without SERVER_NAME, use request context
+                return url_for(endpoint, _external=True, **values)
+        except Exception as e:
+            app.logger.warning(f"URL generation warning: {str(e)}")
+            # Fallback to relative URL
+            return url_for(endpoint, **values)
     
     return dict(external_url_for=external_url_for)
 
@@ -125,60 +128,86 @@ named_playlists = {}  # New: Store playlists by name
 @app.route('/healthz')
 @app.route('/ping')
 def health_check():
-    """Einfacher Health Check ohne Dateisystem-Tests"""
+    """Enhanced health check with proper error handling"""
     try:
         health_status = {
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
             'version': '2.0.0',
             'server': 'gunicorn',
-            'app': 'iptv-m3u-sorter'
+            'app': 'iptv-m3u-sorter',
+            'checks': {}
         }
         
-        # Nur grundlegende Checks
-        health_status['flask'] = 'ok'
-        health_status['gunicorn'] = 'ok'
+        # Basic Flask checks
+        health_status['checks']['flask'] = 'ok'
+        health_status['checks']['routing'] = 'ok'
         
-        # Optionale Dateisystem-Checks nur wenn explizit aktiviert
+        # Configuration checks
+        try:
+            server_name = app.config.get('SERVER_NAME')
+            health_status['checks']['server_name'] = 'configured' if server_name else 'default'
+        except Exception as e:
+            health_status['checks']['server_name'] = f'error: {str(e)}'
+        
+        # Optional filesystem checks
         enable_fs_checks = os.environ.get('ENABLE_FS_HEALTH_CHECKS', 'false').lower() == 'true'
         
         if enable_fs_checks:
             try:
-                upload_dir = app.config['UPLOAD_FOLDER']
-                playlists_dir = app.config['SAVED_PLAYLISTS_FOLDER']
+                upload_dir = app.config.get('UPLOAD_FOLDER', 'uploads')
+                playlists_dir = app.config.get('SAVED_PLAYLISTS_FOLDER', 'saved_playlists')
                 
-                # Verzeichnisse erstellen falls nicht vorhanden
                 for directory in [upload_dir, playlists_dir]:
-                    if not os.path.exists(directory):
-                        os.makedirs(directory, exist_ok=True)
-                        health_status[f'{directory}_created'] = 'ok'
-                    else:
-                        health_status[f'{directory}_exists'] = 'ok'
+                    try:
+                        if os.path.exists(directory):
+                            health_status['checks'][f'{directory}_exists'] = 'ok'
+                            
+                            # Test write permissions if enabled
+                            if os.access(directory, os.W_OK):
+                                health_status['checks'][f'{directory}_writable'] = 'ok'
+                            else:
+                                health_status['checks'][f'{directory}_writable'] = 'readonly'
+                        else:
+                            health_status['checks'][f'{directory}_exists'] = 'missing'
+                            
+                    except OSError as e:
+                        health_status['checks'][f'{directory}_error'] = str(e)
                         
             except Exception as fs_error:
                 app.logger.warning(f"Filesystem check warning: {str(fs_error)}")
-                health_status['filesystem'] = 'limited'
+                health_status['checks']['filesystem'] = f'limited: {str(fs_error)}'
         else:
-            health_status['filesystem_checks'] = 'disabled'
+            health_status['checks']['filesystem_checks'] = 'disabled'
+        
+        # Memory usage check
+        try:
+            playlist_count = len(playlists) if 'playlists' in globals() else 0
+            named_playlist_count = len(named_playlists) if 'named_playlists' in globals() else 0
+            health_status['checks']['playlists_in_memory'] = playlist_count
+            health_status['checks']['named_playlists_in_memory'] = named_playlist_count
+        except Exception as e:
+            health_status['checks']['memory_check'] = f'error: {str(e)}'
         
         return health_status, 200
         
     except Exception as e:
-        app.logger.error(f"Health check error: {str(e)}")
+        app.logger.error(f"Health check failed: {str(e)}")
         return {
-            'status': 'degraded',
+            'status': 'error',
             'timestamp': datetime.now().isoformat(),
             'error': str(e),
             'app': 'iptv-m3u-sorter'
-        }, 200  # Immer 200 zurückgeben für Docker Kompatibilität
+        }, 200  # Return 200 for Docker health check compatibility
 
 @app.route('/ping-simple')
 def ping_simple():
-    """Ultra-einfacher Ping ohne jegliche Dateisystem-Zugriffe"""
+    """Ultra-simple health check that never fails"""
     return {
         'status': 'ok', 
         'timestamp': datetime.now().isoformat(),
-        'app': 'iptv-m3u-sorter'
+        'app': 'iptv-m3u-sorter',
+        'version': '2.0.0'
     }, 200
 
 # Input validation and sanitization
@@ -507,6 +536,95 @@ def serve_playlist_by_id(playlist_id):
             os.unlink(temp_file.name)
         except:
             pass
+
+# Ensure safe application initialization
+
+def initialize_app():
+    """Initialize application with proper error handling"""
+    try:
+        # Ensure upload directories exist with proper error handling
+        upload_dir = app.config['UPLOAD_FOLDER']
+        playlists_dir = app.config['SAVED_PLAYLISTS_FOLDER']
+        
+        for directory in [upload_dir, playlists_dir]:
+            try:
+                os.makedirs(directory, exist_ok=True)
+                app.logger.info(f"Directory initialized: {directory}")
+            except OSError as e:
+                app.logger.warning(f"Could not create directory {directory}: {str(e)}")
+                # Continue without failing - directory might be read-only in container
+        
+        # Test basic Flask functionality
+        with app.test_request_context():
+            try:
+                url_for('index')
+                app.logger.info("Flask URL routing initialized successfully")
+            except Exception as e:
+                app.logger.warning(f"URL routing test failed: {str(e)}")
+        
+        app.logger.info("IPTV M3U Sorter application initialized successfully")
+        
+    except Exception as e:
+        app.logger.error(f"Application initialization failed: {str(e)}")
+        # Don't fail completely - let the app start in degraded mode
+
+# Initialize the application
+initialize_app()
+
+# Add error handlers for production stability
+
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handle 404 errors gracefully"""
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'success': False,
+            'error': 'API endpoint not found',
+            'path': request.path
+        }), 404
+    
+    return render_template('index.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors gracefully"""
+    app.logger.error(f"Internal server error: {str(error)}")
+    
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'message': 'Please try again later'
+        }), 500
+    
+    return render_template('index.html'), 500
+
+@app.errorhandler(413)
+def file_too_large_error(error):
+    """Handle file size limit errors"""
+    max_size_mb = app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024)
+    
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'success': False,
+            'error': f'File too large. Maximum size is {max_size_mb}MB'
+        }), 413
+    
+    return render_template('index.html'), 413
+
+@app.errorhandler(KeyError)
+def key_error_handler(error):
+    """Handle KeyError exceptions gracefully"""
+    app.logger.error(f"KeyError: {str(error)}")
+    
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'success': False,
+            'error': 'Configuration error',
+            'message': 'Please contact administrator'
+        }), 500
+    
+    return render_template('index.html'), 500
 
 if __name__ == '__main__':
     # Development mode only - Gunicorn handles production
