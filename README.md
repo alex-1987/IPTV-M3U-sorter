@@ -106,6 +106,18 @@ Clone and build locally:
 - `alex1987/iptv-m3u-sorter:v2.0.0` - Specific version
 - `alex1987/iptv-m3u-sorter:stable` - Stable release
 
+**Quick Start from Docker Hub:**
+```bash
+# Simple run
+docker run -d -p 5000:5000 alex1987/iptv-m3u-sorter:latest
+
+# With persistent data
+docker run -d -p 5000:5000 \
+  -v ./uploads:/app/uploads \
+  -v ./saved_playlists:/app/saved_playlists \
+  alex1987/iptv-m3u-sorter:latest
+```
+
 ## 🐳 Docker Commands
 
 | Action | Windows | Linux/Mac | Docker Hub |

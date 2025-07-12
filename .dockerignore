@@ -49,8 +49,8 @@ logs/
 .gitignore
 
 # Documentation (keep README.md for Docker Hub)
-DOCKER_HUB_GUIDE.md
-DOCKER_README.md
+*.md
+!README.md
 
 # Docker development files
 docker-compose.yml
@@ -60,8 +60,6 @@ docker-compose.yml
 test_*.py
 *_test.py
 tests/
-docker-test.bat
-docker-hub-push.bat
 
 # Example files (optional - you can include these)
 example_playlist.m3u
